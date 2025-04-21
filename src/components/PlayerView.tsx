@@ -1,6 +1,5 @@
-// src/components/PlayerView.tsx
 import { Box } from "@mui/material";
-import PlayArrowIcon from "@mui/icons-material/PlayArrow";
+// import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 import { useAppSelector } from "../store/store";
 
 export default function PlayerView() {
@@ -32,7 +31,7 @@ export default function PlayerView() {
               p: 1,
               backgroundColor: entry.color,
               borderRadius: 1,
-              boxShadow: entry.id === currentEntryId ? "5px 5px 5px black" : ""
+              boxShadow: entry.id === currentEntryId ? "5px 5px 5px black" : "",
             }}
           >
             {entry.name} ({entry.roll})
