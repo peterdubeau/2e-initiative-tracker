@@ -17,6 +17,7 @@ import {
   DndContext,
   closestCenter,
   PointerSensor,
+  TouchSensor,
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
@@ -92,7 +93,10 @@ const GMView: React.FC = () => {
   const [monsterHidden, setMonsterHidden] = useState(false);
 
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(TouchSensor, {
+      activationConstraint: { delay: 100, tolerance: 5 },
+    })
   );
 
   const handleAddMonster = () => {
@@ -124,7 +128,7 @@ const GMView: React.FC = () => {
   };
 
   return (
-    <Box p={2}>
+    <Box p={2} sx={{ touchAction: "none" }} /* allow touch-drag */>
       <Typography variant="h6" mb={2}>
         GM Controls
       </Typography>

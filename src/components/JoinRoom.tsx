@@ -5,6 +5,8 @@ import { useNavigate, useParams } from "react-router-dom";
 import { useAppDispatch } from "../store/store";
 import { setRoom } from "../store/roomSlice";
 import { connect, getSocket } from "../services/socket";
+import { updateEntries, setTurnIndex } from "../store/roomSlice";
+import { Entry } from "../../init-server/roomManager";
 
 export default function JoinRoom() {
   const { code: urlCode } = useParams<{ code?: string }>();
@@ -17,27 +19,59 @@ export default function JoinRoom() {
   const [loading, setLoading] = useState(false);
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
+  const [isGM, setIsGM] = useState(false);
 
   // Attempt connection when URL contains a code
   useEffect(() => {
-    if (urlCode) {
-      setCode(urlCode.toUpperCase());
-      handleConnect();
+    dispatch(setRoom({ code: code, isGM }));
+
+    // clear any leftover storage
+    sessionStorage.removeItem("playerInfo");
+
+    const socket = connect(code, isGM);
+
+    socket.on("room-update", (state) => {
+      dispatch(updateEntries(state.entries));
+      dispatch(setTurnIndex(state.currentTurnIndex));
+    });
+
+    if (!isGM) {
+      socket.on("connect", () => {
+        const raw = sessionStorage.getItem("playerInfo");
+        if (raw) {
+          socket.emit("join-room", JSON.parse(raw));
+          sessionStorage.removeItem("playerInfo");
+        }
+      });
     }
+
     return () => {
-      try {
-        getSocket()?.disconnect();
-      } catch {
-        /* ignore */
-      }
+      socket.disconnect();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [urlCode]);
+  }, [code, isGM, dispatch]);
 
   function handleConnect() {
     setError("");
     setLoading(true);
     const socket = connect(code, false);
+    // 1) register your listener first
+    socket.on("room-update", (state) => {
+      console.log("⏳ client got room-update:");
+      state.entries.map((e: Entry) => e.name);
+      dispatch(updateEntries(state.entries));
+      dispatch(setTurnIndex(state.currentTurnIndex));
+    });
+
+    // 2) ONLY AFTER the listener is set up, emit join for players
+    if (!isGM) {
+      socket.on("connect", () => {
+        const raw = sessionStorage.getItem("playerInfo");
+        if (raw) {
+          socket.emit("join-room", JSON.parse(raw));
+          sessionStorage.removeItem("playerInfo");
+        }
+      });
+    }
     socket.on("connect", () => {
       setLoading(false);
       setStep("details");
@@ -55,6 +89,7 @@ export default function JoinRoom() {
       return;
     }
     handleConnect();
+    sessionStorage.clear();
   }
 
   function handleJoin() {

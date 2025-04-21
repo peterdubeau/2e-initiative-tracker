@@ -13,6 +13,8 @@ const CreateRoom: React.FC = () => {
   const navigate = useNavigate();
 
   const handleCreate = async () => {
+    localStorage.clear();
+    sessionStorage.clear();
     // infer the API host from wherever the FE is running
     const resp = await api.post("/create-room");
 
