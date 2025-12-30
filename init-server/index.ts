@@ -2,26 +2,98 @@ import express from "express";
 import http from "http";
 import cors from "cors";
 import { Server, Socket } from "socket.io";
+import os from "os";
 import { RoomManager } from "./roomManager"; // add .ts extension for ts-node resolution
 
 const app = express();
-app.use(cors());
 const server = http.createServer(app);
-app.use(
-  cors({
-    origin: ["http://localhost:5173", "http://192.168.1.154:5173"],
-    methods: ["GET", "POST"],
-    credentials: true,
-  })
-);
+
+// Allow CORS from localhost and any local network IP (192.168.x.x, 10.x.x.x, 172.16-31.x.x)
+const corsOptions = {
+  origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    // Allow localhost
+    if (origin.startsWith('http://localhost:') || origin.startsWith('http://127.0.0.1:')) {
+      return callback(null, true);
+    }
+    
+    // Allow local network IPs (192.168.x.x, 10.x.x.x, 172.16-31.x.x)
+    const localNetworkRegex = /^http:\/\/(192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2[0-9]|3[01])\.\d+\.\d+):\d+$/;
+    if (localNetworkRegex.test(origin)) {
+      return callback(null, true);
+    }
+    
+    callback(new Error('Not allowed by CORS'));
+  },
+  methods: ["GET", "POST"],
+  credentials: true,
+};
+
+app.use(cors(corsOptions));
 
 const io = new Server(server, {
-  cors: {
-    origin: ["http://localhost:5173", "http://192.168.1.154:5173"],
-    methods: ["GET", "POST"],
-  },
+  cors: corsOptions,
 });
 const roomManager = new RoomManager();
+
+// Get the server's local network IP address
+function getLocalNetworkIP(): string {
+  const interfaces = os.networkInterfaces();
+  const localNetworkPrefixes = ["192.168.", "10.", "172.16.", "172.17.", "172.18.", "172.19.", 
+                                 "172.20.", "172.21.", "172.22.", "172.23.", "172.24.", "172.25.",
+                                 "172.26.", "172.27.", "172.28.", "172.29.", "172.30.", "172.31."];
+  
+  // First pass: prefer local network IPs (192.168.x.x, 10.x.x.x, 172.16-31.x.x)
+  for (const name of Object.keys(interfaces)) {
+    const iface = interfaces[name];
+    if (!iface) continue;
+    for (const addr of iface) {
+      if (addr.family === "IPv4" && !addr.internal) {
+        if (localNetworkPrefixes.some(prefix => addr.address.startsWith(prefix))) {
+          return addr.address;
+        }
+      }
+    }
+  }
+  
+  // Fallback: return first non-internal IPv4 address
+  for (const name of Object.keys(interfaces)) {
+    const iface = interfaces[name];
+    if (!iface) continue;
+    for (const addr of iface) {
+      if (addr.family === "IPv4" && !addr.internal) {
+        return addr.address;
+      }
+    }
+  }
+  return "localhost";
+}
+
+// Endpoint to get server configuration (IP and port)
+app.get("/api-config", (req, res) => {
+  let serverIP = getLocalNetworkIP(); // Fallback to detected IP
+  
+  // Try to get the IP from the Host header (the IP the client used to connect)
+  const hostHeader = req.get("host") || "";
+  // Extract IP from "192.168.1.160:3001" format
+  const hostMatch = hostHeader.match(/^(\d+\.\d+\.\d+\.\d+)/);
+  if (hostMatch) {
+    const requestedIP = hostMatch[1];
+    // If it's a local network IP, use it (it's the IP the frontend can reach us on)
+    if (requestedIP.startsWith("192.168.") || 
+        requestedIP.startsWith("10.") || 
+        /^172\.(1[6-9]|2[0-9]|3[01])\./.test(requestedIP)) {
+      serverIP = requestedIP;
+    }
+  }
+  
+  res.json({ 
+    host: serverIP,
+    port: PORT 
+  });
+});
 
 app.post("/create-room", (_req, res) => {
   const code = roomManager.createRoom();
@@ -113,5 +185,8 @@ const HOST = "0.0.0.0";
 
 // use the options overload: listen({ port, host }, callback)
 server.listen({ port: PORT, host: HOST }, () => {
+  const serverIP = getLocalNetworkIP();
   console.log(`Server listening on ${HOST}:${PORT}`);
+  console.log(`Server IP: ${serverIP}`);
+  console.log(`API config available at: http://${serverIP}:${PORT}/api-config`);
 });

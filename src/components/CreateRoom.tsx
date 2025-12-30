@@ -16,15 +16,20 @@ const CreateRoom: React.FC = () => {
     localStorage.clear();
     sessionStorage.clear();
     // infer the API host from wherever the FE is running
-    const resp = await api.post("/create-room");
+    try {
+      const resp = await api.post("/create-room");
 
-    const code = resp.data.code as string;
-    // persist GM status
-    sessionStorage.setItem("roomCode", code);
-    sessionStorage.setItem("isGM", "true");
-    setRoomCode(code);
-    dispatch(setRoom({ code, isGM: true }));
-    navigate(`/room/${code}`);
+      const code = resp.data.code as string;
+      // persist GM status
+      sessionStorage.setItem("roomCode", code);
+      sessionStorage.setItem("isGM", "true");
+      setRoomCode(code);
+      dispatch(setRoom({ code, isGM: true }));
+      navigate(`/room/${code}`);
+    } catch (error: any) {
+      console.error('Create room error:', error);
+      // Don't throw - show error to user instead
+    }
   };
 
   return (
