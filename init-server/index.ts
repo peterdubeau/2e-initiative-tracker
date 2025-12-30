@@ -3,6 +3,8 @@ import http from "http";
 import cors from "cors";
 import { Server, Socket } from "socket.io";
 import os from "os";
+import fs from "fs";
+import path from "path";
 import { RoomManager } from "./roomManager"; // add .ts extension for ts-node resolution
 
 const app = express();
@@ -32,11 +34,34 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
+app.use(express.json());
 
 const io = new Server(server, {
   cors: corsOptions,
 });
 const roomManager = new RoomManager();
+
+// Load GM credentials from GM_list.json
+function loadGMCredentials(): Array<{ name: string; Password: string }> {
+  try {
+    const gmListPath = path.join(__dirname, "..", "GM_list.json");
+    const fileContent = fs.readFileSync(gmListPath, "utf-8");
+    return JSON.parse(fileContent);
+  } catch (error) {
+    console.error("Error loading GM_list.json:", error);
+    return [];
+  }
+}
+
+const gmCredentials = loadGMCredentials();
+
+// Validate GM credentials
+function validateGMCredentials(name: string, password: string): boolean {
+  const gm = gmCredentials.find(
+    (g) => g.name === name && g.Password === password
+  );
+  return Boolean(gm);
+}
 
 // Get the server's local network IP address
 function getLocalNetworkIP(): string {
@@ -95,19 +120,50 @@ app.get("/api-config", (req, res) => {
   });
 });
 
-app.post("/create-room", (_req, res) => {
-  const code = roomManager.createRoom();
-  res.json({ code });
+// GM login endpoint
+app.post("/login-gm", express.json(), (req, res) => {
+  const { name, password } = req.body;
+  
+  if (!name || !password) {
+    res.status(400).json({ error: "Name and password are required" });
+    return;
+  }
+
+  if (validateGMCredentials(name, password)) {
+    // If room doesn't exist, create it. If it exists, allow reconnection.
+    if (!roomManager.hasRoom(name)) {
+      roomManager.createRoom(name);
+    }
+    res.json({ success: true, gmName: name });
+  } else {
+    res.status(401).json({ error: "Invalid credentials" });
+  }
+});
+
+// Get list of active GMs
+app.get("/active-gms", (_req, res) => {
+  const activeGMs = roomManager.getActiveGMs();
+  res.json({ gms: activeGMs });
+});
+
+// Legacy endpoint - kept for backward compatibility but will be removed
+app.post("/create-room", express.json(), (req, res) => {
+  const { gmName } = req.body;
+  if (gmName && roomManager.hasRoom(gmName)) {
+    res.json({ success: true, gmName });
+  } else {
+    res.status(400).json({ error: "Invalid GM name or room does not exist" });
+  }
 });
 
 io.on("connection", (socket: Socket) => {
-  const { room: roomCode, gm } = socket.handshake.query as {
-    room: string;
+  const { gmName, gm } = socket.handshake.query as {
+    gmName: string;
     gm: string;
   };
-  if (!roomManager.hasRoom(roomCode)) {
+  if (!roomManager.hasRoom(gmName)) {
     console.log(
-      `❌ Room ${roomCode} does not exist, disconnecting socket ${socket.id}`
+      `❌ Room for GM ${gmName} does not exist, disconnecting socket ${socket.id}`
     );
     socket.emit("error", "Room does not exist");
     socket.disconnect(true);
@@ -115,11 +171,11 @@ io.on("connection", (socket: Socket) => {
   }
 
   console.log(
-    `🔗 socket ${socket.id} connected, roomCode="${roomCode}", gm=${gm}`
+    `🔗 socket ${socket.id} connected, gmName="${gmName}", gm=${gm}`
   );
 
-  socket.join(roomCode);
-  socket.emit("room-update", roomManager.getRoomState(roomCode));
+  socket.join(gmName);
+  socket.emit("room-update", roomManager.getRoomState(gmName));
 
   socket.onAny((eventName, ...args) => {
     console.log(`⚡ event ${eventName}`, args);
@@ -127,61 +183,61 @@ io.on("connection", (socket: Socket) => {
 
   socket.on("join-room", (player) => {
     console.log("👤 join-room payload:", player);
-    roomManager.addPlayer(roomCode, player);
+    roomManager.addPlayer(gmName, player);
 
     // right here, log the full room state so we can see it growing
-    const newState = roomManager.getRoomState(roomCode);
+    const newState = roomManager.getRoomState(gmName);
     console.log(
       "📣 broadcasting room-update:",
       newState.entries.map((e) => e.name)
     );
     console.log(
       "🛋️  [server] sockets in room:",
-      Array.from(io.sockets.adapter.rooms.get(roomCode) || [])
+      Array.from(io.sockets.adapter.rooms.get(gmName) || [])
     );
-    io.to(roomCode).emit("room-update", newState);
-    console.log("📣 [server] emitting room-update to", roomCode);
+    io.to(gmName).emit("room-update", newState);
+    console.log("📣 [server] emitting room-update to", gmName);
   });
 
   socket.on("add-monster", (monster) => {
-    roomManager.addMonster(roomCode, monster);
-    io.to(roomCode).emit("room-update", roomManager.getRoomState(roomCode));
+    roomManager.addMonster(gmName, monster);
+    io.to(gmName).emit("room-update", roomManager.getRoomState(gmName));
     console.log("monster added", monster);
   });
 
   socket.on("update-entry", (entry) => {
-    roomManager.updateEntry(roomCode, entry);
+    roomManager.updateEntry(gmName, entry);
     console.log("update-entry", entry);
-    io.to(roomCode).emit("room-update", roomManager.getRoomState(roomCode));
+    io.to(gmName).emit("room-update", roomManager.getRoomState(gmName));
   });
 
   socket.on("reorder-entries", ({ from, to }) => {
     console.log("reorder-entries", { from, to });
-    roomManager.reorderEntries(roomCode, from, to);
-    io.to(roomCode).emit("room-update", roomManager.getRoomState(roomCode));
+    roomManager.reorderEntries(gmName, from, to);
+    io.to(gmName).emit("room-update", roomManager.getRoomState(gmName));
   });
 
   socket.on("next-turn", () => {
-    roomManager.nextTurn(roomCode);
-    io.to(roomCode).emit("room-update", roomManager.getRoomState(roomCode));
+    roomManager.nextTurn(gmName);
+    io.to(gmName).emit("room-update", roomManager.getRoomState(gmName));
     console.log("next-turn");
   });
 
   socket.on("remove-entry", (id) => {
-    roomManager.removeEntry(roomCode, id);
-    io.to(roomCode).emit("room-update", roomManager.getRoomState(roomCode));
+    roomManager.removeEntry(gmName, id);
+    io.to(gmName).emit("room-update", roomManager.getRoomState(gmName));
     console.log("remove-entry", id);
   });
 
   socket.on("toggle-hidden", (id) => {
-    roomManager.toggleHidden(roomCode, id);
-    io.to(roomCode).emit("room-update", roomManager.getRoomState(roomCode));
+    roomManager.toggleHidden(gmName, id);
+    io.to(gmName).emit("room-update", roomManager.getRoomState(gmName));
     console.log("toggle-hidden", id);
   });
 
   socket.on("sort-by-initiative", () => {
-    roomManager.sortByInitiative(roomCode);
-    io.to(roomCode).emit("room-update", roomManager.getRoomState(roomCode));
+    roomManager.sortByInitiative(gmName);
+    io.to(gmName).emit("room-update", roomManager.getRoomState(gmName));
     console.log("sort-by-initiative");
   });
 });

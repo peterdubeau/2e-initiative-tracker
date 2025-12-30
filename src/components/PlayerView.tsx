@@ -8,7 +8,7 @@ import { useAppSelector } from "../store/store";
 
 export default function PlayerView() {
   const entries = useAppSelector((state) => state.room.entries);
-  const roomCode = useAppSelector((state) => state.room.code);
+  const gmName = useAppSelector((state) => state.room.gmName);
   const currentTurnIndex = useAppSelector(
     (state) => state.room.currentTurnIndex
   );
@@ -23,7 +23,7 @@ export default function PlayerView() {
   const handleCopyLink = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    const joinUrl = `${window.location.origin}/join/${roomCode}`;
+    const joinUrl = `${window.location.origin}/join`;
     try {
       await navigator.clipboard.writeText(joinUrl);
       setCopied(true);
@@ -59,17 +59,16 @@ export default function PlayerView() {
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 2 }}>
             <Box>
               <Typography variant="body2" sx={{ color: 'white', opacity: 0.9, mb: 0.5 }}>
-                Room Code
+                Game Master
               </Typography>
               <Typography
                 variant="h4"
                 sx={{
                   fontWeight: 700,
                   color: 'white',
-                  letterSpacing: '0.2em',
                 }}
               >
-                {roomCode}
+                {gmName}
               </Typography>
             </Box>
             <Button

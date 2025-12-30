@@ -9,32 +9,29 @@ export type Entry = {
   hidden: boolean;
 };
 
-type Room = { code: string; entries: Entry[]; currentTurnIndex: number };
+type Room = { gmName: string; entries: Entry[]; currentTurnIndex: number };
 
 export class RoomManager {
   private rooms: Record<string, Room> = {};
 
-  createRoom(): string {
-    let code: string;
-    do {
-      code = Array.from({ length: 4 }, () =>
-        String.fromCharCode(65 + Math.floor(Math.random() * 26))
-      ).join("");
-    } while (this.rooms[code]);
-    this.rooms[code] = { code, entries: [], currentTurnIndex: 0 };
-    return code;
+  createRoom(gmName: string): void {
+    this.rooms[gmName] = { gmName, entries: [], currentTurnIndex: 0 };
   }
 
-  hasRoom(code: string): boolean {
-    return Boolean(this.rooms[code]);
+  hasRoom(gmName: string): boolean {
+    return Boolean(this.rooms[gmName]);
   }
 
-  getRoomState(code: string): Room {
-    return this.rooms[code];
+  getRoomState(gmName: string): Room {
+    return this.rooms[gmName];
   }
 
-  addPlayer(code: string, player: Omit<Entry, "id" | "isMonster" | "hidden">) {
-    this.rooms[code].entries.push({
+  getActiveGMs(): string[] {
+    return Object.keys(this.rooms);
+  }
+
+  addPlayer(gmName: string, player: Omit<Entry, "id" | "isMonster" | "hidden">) {
+    this.rooms[gmName].entries.push({
       id: uuidv4(),
       ...player,
       isMonster: false,
@@ -43,36 +40,36 @@ export class RoomManager {
   }
 
   addMonster(
-    code: string,
+    gmName: string,
     monster: Omit<Entry, "id" | "isMonster"> & { hidden: boolean }
   ) {
-    this.rooms[code].entries.push({
+    this.rooms[gmName].entries.push({
       id: uuidv4(),
       ...monster,
       isMonster: true,
     });
   }
 
-  updateEntry(code: string, updated: Entry) {
-    this.rooms[code].entries = this.rooms[code].entries.map((e) =>
+  updateEntry(gmName: string, updated: Entry) {
+    this.rooms[gmName].entries = this.rooms[gmName].entries.map((e) =>
       e.id === updated.id ? updated : e
     );
   }
 
-  removeEntry(code: string, id: string) {
-    this.rooms[code].entries = this.rooms[code].entries.filter(
+  removeEntry(gmName: string, id: string) {
+    this.rooms[gmName].entries = this.rooms[gmName].entries.filter(
       (e) => e.id !== id
     );
   }
 
-  reorderEntries(code: string, from: number, to: number) {
-    const entries = this.rooms[code].entries;
+  reorderEntries(gmName: string, from: number, to: number) {
+    const entries = this.rooms[gmName].entries;
     const [moved] = entries.splice(from, 1);
     entries.splice(to, 0, moved);
   }
 
-  nextTurn(code: string) {
-    const room = this.rooms[code];
+  nextTurn(gmName: string) {
+    const room = this.rooms[gmName];
     if (!room) return;
 
     const { entries } = room;
@@ -92,13 +89,13 @@ export class RoomManager {
     room.currentTurnIndex = nextIdx;
   }
 
-  toggleHidden(code: string, id: string) {
-    const entry = this.rooms[code].entries.find((e) => e.id === id);
+  toggleHidden(gmName: string, id: string) {
+    const entry = this.rooms[gmName].entries.find((e) => e.id === id);
     if (entry) entry.hidden = !entry.hidden;
   }
 
-  sortByInitiative(code: string) {
-    const room = this.rooms[code];
+  sortByInitiative(gmName: string) {
+    const room = this.rooms[gmName];
     if (!room) return;
 
     // Store the current entry ID before sorting

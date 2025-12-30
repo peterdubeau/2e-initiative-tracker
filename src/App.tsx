@@ -9,10 +9,8 @@ export default function App() {
     <Routes>
       <Route path="/" element={<Home />} />
       <Route path="/create" element={<CreateRoom />} />
-      {/* both a code‑free join page and the one with a URL param */}
       <Route path="/join" element={<JoinRoom />} />
-      <Route path="/join/:code" element={<JoinRoom />} />
-      <Route path="/room/:code" element={<Room />} />
+      <Route path="/room/:gmName" element={<Room />} />
     </Routes>
   );
 }

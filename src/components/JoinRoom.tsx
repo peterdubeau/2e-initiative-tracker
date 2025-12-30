@@ -1,17 +1,19 @@
 // src/components/JoinRoom.tsx
 import { useState, useEffect } from "react";
-import { Box, TextField, Button, Typography, Alert, Card, CardContent, Container } from "@mui/material";
-import { useNavigate, useParams } from "react-router-dom";
+import { Box, TextField, Button, Typography, Alert, Card, CardContent, Container, Paper, CircularProgress } from "@mui/material";
+import PersonIcon from "@mui/icons-material/Person";
+import { useNavigate } from "react-router-dom";
 import { useAppDispatch } from "../store/store";
 import { setRoom } from "../store/roomSlice";
 import { connect, getSocket } from "../services/socket";
 import { updateEntries, setTurnIndex } from "../store/roomSlice";
-import { Entry } from "../../init-server/roomManager";
+import { api } from "../services/api";
 
 export default function JoinRoom() {
-  const { code: urlCode } = useParams<{ code?: string }>();
-  const [step, setStep] = useState<"enterCode" | "details">("enterCode");
-  const [code, setCode] = useState(urlCode?.toUpperCase() || "");
+  const [step, setStep] = useState<"selectGM" | "details">("selectGM");
+  const [selectedGmName, setSelectedGmName] = useState<string>("");
+  const [gmList, setGmList] = useState<string[]>([]);
+  const [loadingGMs, setLoadingGMs] = useState(true);
   const [name, setName] = useState("");
   const [initiative, setInitiative] = useState<number>(0);
   const [color, setColor] = useState("#2196f3");
@@ -19,77 +21,69 @@ export default function JoinRoom() {
   const [loading, setLoading] = useState(false);
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
-  const [isGM, setIsGM] = useState(false);
 
-  // Attempt connection when URL contains a code
+  // Fetch active GMs on mount
   useEffect(() => {
-    dispatch(setRoom({ code: code, isGM }));
+    const fetchActiveGMs = async () => {
+      try {
+        const resp = await api.get("/active-gms");
+        setGmList(resp.data.gms || []);
+      } catch (error) {
+        console.error("Failed to fetch active GMs:", error);
+        setError("Failed to load active game masters");
+      } finally {
+        setLoadingGMs(false);
+      }
+    };
+
+    fetchActiveGMs();
+    
+    // Poll for active GMs every 5 seconds
+    const interval = setInterval(fetchActiveGMs, 5000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Setup socket connection when GM is selected
+  useEffect(() => {
+    if (!selectedGmName) return;
+
+    dispatch(setRoom({ gmName: selectedGmName, isGM: false }));
 
     // clear any leftover storage
     sessionStorage.removeItem("playerInfo");
 
-    const socket = connect(code, isGM);
+    const socket = connect(selectedGmName, false);
 
     socket.on("room-update", (state) => {
       dispatch(updateEntries(state.entries));
       dispatch(setTurnIndex(state.currentTurnIndex));
     });
 
-    if (!isGM) {
-      socket.on("connect", () => {
-        const raw = sessionStorage.getItem("playerInfo");
-        if (raw) {
-          socket.emit("join-room", JSON.parse(raw));
-          sessionStorage.removeItem("playerInfo");
-        }
-      });
-    }
+    socket.on("connect", () => {
+      setLoading(false);
+      const raw = sessionStorage.getItem("playerInfo");
+      if (raw) {
+        socket.emit("join-room", JSON.parse(raw));
+        sessionStorage.removeItem("playerInfo");
+      }
+    });
+
+    socket.on("connect_error", () => {
+      setLoading(false);
+      setError("Failed to connect to room");
+      socket.disconnect();
+    });
 
     return () => {
       socket.disconnect();
     };
-  }, [code, isGM, dispatch]);
+  }, [selectedGmName, dispatch]);
 
-  function handleConnect() {
+  function handleSelectGM(gmName: string) {
+    setSelectedGmName(gmName);
     setError("");
     setLoading(true);
-    const socket = connect(code, false);
-    // 1) register your listener first
-    socket.on("room-update", (state) => {
-      console.log("⏳ client got room-update:");
-      state.entries.map((e: Entry) => e.name);
-      dispatch(updateEntries(state.entries));
-      dispatch(setTurnIndex(state.currentTurnIndex));
-    });
-
-    // 2) ONLY AFTER the listener is set up, emit join for players
-    if (!isGM) {
-      socket.on("connect", () => {
-        const raw = sessionStorage.getItem("playerInfo");
-        if (raw) {
-          socket.emit("join-room", JSON.parse(raw));
-          sessionStorage.removeItem("playerInfo");
-        }
-      });
-    }
-    socket.on("connect", () => {
-      setLoading(false);
-      setStep("details");
-    });
-    socket.on("connect_error", () => {
-      setLoading(false);
-      setError("Invalid room code or room is closed");
-      socket.disconnect();
-    });
-  }
-
-  function handleCodeSubmit() {
-    if (code.trim().length !== 4) {
-      setError("Room code must be 4 letters");
-      return;
-    }
-    handleConnect();
-    sessionStorage.clear();
+    setStep("details");
   }
 
   function handleJoin() {
@@ -98,28 +92,22 @@ export default function JoinRoom() {
       return;
     }
     setError("");
-    dispatch(setRoom({ code, isGM: false }));
+    dispatch(setRoom({ gmName: selectedGmName, isGM: false }));
     const socket = getSocket()!;
-    console.log({
-      name: name.trim(),
-      roll: initiative,
-      color,
-    });
     socket.emit("join-room", {
       name: name.trim(),
       roll: initiative,
       color,
     });
     const pi = { name: name.trim(), roll: initiative, color };
-    console.log(JSON.stringify(pi));
     Object.entries(pi).forEach(([key, value]) => {
       sessionStorage.setItem(key, value as string);
     });
-    navigate(`/room/${code}`);
+    navigate(`/room/${selectedGmName}`);
   }
 
-  // Step 1: enter/validate room code
-  if (step === "enterCode") {
+  // Step 1: Select GM
+  if (step === "selectGM") {
     return (
       <Container maxWidth="sm">
         <Box
@@ -141,10 +129,10 @@ export default function JoinRoom() {
             <CardContent sx={{ p: 4 }}>
               <Box sx={{ textAlign: 'center', mb: 4 }}>
                 <Typography variant="h4" component="h1" gutterBottom sx={{ fontWeight: 700 }}>
-                  Enter Room Code
+                  Select Game Master
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
-                  Enter the 4-letter code provided by your Game Master
+                  Choose a Game Master to join their room
                 </Typography>
               </Box>
 
@@ -154,40 +142,42 @@ export default function JoinRoom() {
                 </Alert>
               )}
 
-              <TextField
-                label="Room Code"
-                value={code}
-                onChange={(e) => setCode(e.target.value.toUpperCase())}
-                inputProps={{
-                  maxLength: 4,
-                  style: {
-                    textAlign: 'center',
-                    fontSize: '1.5rem',
-                    fontWeight: 700,
-                    letterSpacing: '0.2em',
-                  },
-                }}
-                fullWidth
-                margin="normal"
-                sx={{ mb: 3 }}
-              />
-
-              <Button
-                variant="contained"
-                fullWidth
-                size="large"
-                onClick={handleCodeSubmit}
-                disabled={loading || code.length !== 4}
-                sx={{
-                  py: 1.5,
-                  fontSize: '1.1rem',
-                  borderRadius: 3,
-                  textTransform: 'none',
-                  fontWeight: 600,
-                }}
-              >
-                {loading ? "Connecting…" : "Connect"}
-              </Button>
+              {loadingGMs ? (
+                <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+                  <CircularProgress />
+                </Box>
+              ) : gmList.length === 0 ? (
+                <Alert severity="info" sx={{ mb: 3 }}>
+                  No active game masters at the moment. Please wait for a GM to create a room.
+                </Alert>
+              ) : (
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  {gmList.map((gmName) => (
+                    <Paper
+                      key={gmName}
+                      elevation={2}
+                      sx={{
+                        p: 2,
+                        borderRadius: 2,
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease',
+                        '&:hover': {
+                          elevation: 4,
+                          backgroundColor: 'action.hover',
+                        },
+                      }}
+                      onClick={() => handleSelectGM(gmName)}
+                    >
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                        <PersonIcon color="primary" />
+                        <Typography variant="h6" sx={{ fontWeight: 600, flexGrow: 1 }}>
+                          {gmName}
+                        </Typography>
+                      </Box>
+                    </Paper>
+                  ))}
+                </Box>
+              )}
             </CardContent>
           </Card>
         </Box>
@@ -219,8 +209,8 @@ export default function JoinRoom() {
               <Typography variant="h4" component="h1" gutterBottom sx={{ fontWeight: 700 }}>
                 Join Game
               </Typography>
-              <Typography variant="h6" color="primary.main" sx={{ fontWeight: 600, letterSpacing: '0.2em' }}>
-                {code}
+              <Typography variant="h6" color="primary.main" sx={{ fontWeight: 600 }}>
+                Game Master: {selectedGmName}
               </Typography>
             </Box>
 

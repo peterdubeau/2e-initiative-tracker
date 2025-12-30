@@ -10,7 +10,8 @@ type Entry = {
 };
 
 interface RoomState {
-  code: string;
+  code: string; // Keep for backward compatibility, but deprecated
+  gmName: string;
   isGM: boolean;
   entries: Entry[];
   currentTurnIndex: number;
@@ -18,6 +19,7 @@ interface RoomState {
 
 const initialState: RoomState = {
   code: "",
+  gmName: "",
   isGM: false,
   entries: [],
   currentTurnIndex: 0,
@@ -27,8 +29,9 @@ const roomSlice = createSlice({
   name: "room",
   initialState,
   reducers: {
-    setRoom(state, action: PayloadAction<{ code: string; isGM: boolean }>) {
-      state.code = action.payload.code;
+    setRoom(state, action: PayloadAction<{ gmName: string; isGM: boolean }>) {
+      state.gmName = action.payload.gmName;
+      state.code = action.payload.gmName; // Keep code for backward compatibility
       state.isGM = action.payload.isGM;
     },
     updateEntries(state, action: PayloadAction<Entry[]>) {

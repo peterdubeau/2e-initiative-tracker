@@ -9,13 +9,13 @@ import GMView from "./GMView";
 import PlayerView from "./PlayerView";
 
 const Room: React.FC = () => {
-  const { code } = useParams<{ code: string }>();
+  const { gmName } = useParams<{ gmName: string }>();
   const dispatch = useDispatch<AppDispatch>();
 
   // Compute GM flag from sessionStorage + URL
-  const storedCode = sessionStorage.getItem("roomCode");
+  const storedGmName = sessionStorage.getItem("gmName");
   const storedIsGM = sessionStorage.getItem("isGM") === "true";
-  const isGM = storedIsGM && storedCode === code;
+  const isGM = storedIsGM && storedGmName === gmName;
 
   // Pull entries & turn from Redux for rendering if needed
   const entries = useSelector((s: RootState) => s.room.entries);
@@ -24,19 +24,19 @@ const Room: React.FC = () => {
   );
 
   useEffect(() => {
-    if (!code) return;
+    if (!gmName) return;
 
-    // Persist roomCode; only keep isGM flag if codes match
-    sessionStorage.setItem("roomCode", code);
+    // Persist gmName; only keep isGM flag if GM names match
+    sessionStorage.setItem("gmName", gmName);
     if (!isGM) {
       sessionStorage.removeItem("isGM");
     }
 
     // Initialize Redux state
-    dispatch(setRoom({ code, isGM }));
+    dispatch(setRoom({ gmName, isGM }));
 
     // Open socket with correct role
-    const socket = connect(code, isGM);
+    const socket = connect(gmName, isGM);
     if (!isGM) {
       const raw = sessionStorage.getItem("playerInfo");
       if (raw) {
@@ -55,7 +55,7 @@ const Room: React.FC = () => {
     return () => {
       socket.disconnect();
     };
-  }, [code, isGM, dispatch]);
+  }, [gmName, isGM, dispatch]);
 
   // Render GM or Player view
   return isGM ? <GMView /> : <PlayerView />;

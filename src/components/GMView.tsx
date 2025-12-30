@@ -181,7 +181,7 @@ const SortableItem: React.FC<{
 
 const GMView: React.FC = () => {
   const entries = useSelector((state: RootState) => state.room.entries);
-  const roomCode = useSelector((state: RootState) => state.room.code);
+  const gmName = useSelector((state: RootState) => state.room.gmName);
   const current = useSelector(
     (state: RootState) => state.room.currentTurnIndex
   );
@@ -231,7 +231,7 @@ const GMView: React.FC = () => {
   const handleCopyLink = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    const joinUrl = `${window.location.origin}/join/${roomCode}`;
+    const joinUrl = `${window.location.origin}/join`;
     try {
       await navigator.clipboard.writeText(joinUrl);
       setCopied(true);
@@ -281,17 +281,16 @@ const GMView: React.FC = () => {
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 2 }}>
             <Box>
               <Typography variant="body2" sx={{ color: 'white', opacity: 0.9, mb: 0.5 }}>
-                Room Code
+                Game Master
               </Typography>
               <Typography
                 variant="h4"
                 sx={{
                   fontWeight: 700,
                   color: 'white',
-                  letterSpacing: '0.2em',
                 }}
               >
-                {roomCode}
+                {gmName}
               </Typography>
             </Box>
             <Button

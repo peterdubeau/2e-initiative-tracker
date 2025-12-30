@@ -4,15 +4,12 @@ import {
   Button,
   TextField,
   Typography,
-  IconButton,
   Card,
   CardContent,
   Container,
-  InputAdornment,
   Alert,
   CircularProgress,
 } from "@mui/material";
-import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import CreateIcon from "@mui/icons-material/Create";
 import { useNavigate } from "react-router-dom";
@@ -22,46 +19,42 @@ import { setRoom } from "../store/roomSlice";
 import { api } from "../services/api";
 
 const CreateRoom: React.FC = () => {
-  const [roomCode, setRoomCode] = useState<string>("");
+  const [gmName, setGmName] = useState<string>("");
+  const [password, setPassword] = useState<string>("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>("");
-  const [copied, setCopied] = useState(false);
+  const [loggedIn, setLoggedIn] = useState(false);
   const dispatch = useDispatch<AppDispatch>();
   const navigate = useNavigate();
 
-  const handleCreate = async () => {
-    localStorage.clear();
-    sessionStorage.clear();
+  const handleLogin = async () => {
     setError("");
     setLoading(true);
     
     try {
-      const resp = await api.post("/create-room");
+      const resp = await api.post("/login-gm", {
+        name: gmName,
+        password: password,
+      });
 
-      const code = resp.data.code as string;
-      // persist GM status
-      sessionStorage.setItem("roomCode", code);
-      sessionStorage.setItem("isGM", "true");
-      setRoomCode(code);
-      dispatch(setRoom({ code, isGM: true }));
-      
-      // Navigate after a brief delay to show success
-      setTimeout(() => {
-        navigate(`/room/${code}`);
-      }, 1500);
+      if (resp.data.success) {
+        const name = resp.data.gmName as string;
+        // persist GM status
+        sessionStorage.setItem("gmName", name);
+        sessionStorage.setItem("isGM", "true");
+        setLoggedIn(true);
+        dispatch(setRoom({ gmName: name, isGM: true }));
+        
+        // Navigate after a brief delay to show success
+        setTimeout(() => {
+          navigate(`/room/${name}`);
+        }, 1500);
+      }
     } catch (error: any) {
-      console.error('Create room error:', error);
-      setError(error?.response?.data?.message || 'Failed to create room. Please try again.');
+      console.error('Login error:', error);
+      setError(error?.response?.data?.error || 'Invalid credentials. Please try again.');
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleCopy = async () => {
-    if (roomCode) {
-      await navigator.clipboard.writeText(roomCode);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
     }
   };
 
@@ -99,24 +92,52 @@ const CreateRoom: React.FC = () => {
               </Alert>
             )}
 
-            {!roomCode ? (
-              <Button
-                variant="contained"
-                fullWidth
-                size="large"
-                onClick={handleCreate}
-                disabled={loading}
-                startIcon={loading ? <CircularProgress size={20} color="inherit" /> : <CreateIcon />}
-                sx={{
-                  py: 1.5,
-                  fontSize: '1.1rem',
-                  borderRadius: 3,
-                  textTransform: 'none',
-                  fontWeight: 600,
-                }}
-              >
-                {loading ? 'Creating Room...' : 'Create Room'}
-              </Button>
+            {!loggedIn ? (
+              <Box>
+                <TextField
+                  label="GM Name"
+                  value={gmName}
+                  onChange={(e) => setGmName(e.target.value)}
+                  fullWidth
+                  margin="normal"
+                  sx={{ mb: 2 }}
+                  required
+                  autoComplete="username"
+                />
+                <TextField
+                  label="Password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  fullWidth
+                  margin="normal"
+                  sx={{ mb: 3 }}
+                  required
+                  autoComplete="current-password"
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter' && gmName && password) {
+                      handleLogin();
+                    }
+                  }}
+                />
+                <Button
+                  variant="contained"
+                  fullWidth
+                  size="large"
+                  onClick={handleLogin}
+                  disabled={loading || !gmName || !password}
+                  startIcon={loading ? <CircularProgress size={20} color="inherit" /> : <CreateIcon />}
+                  sx={{
+                    py: 1.5,
+                    fontSize: '1.1rem',
+                    borderRadius: 3,
+                    textTransform: 'none',
+                    fontWeight: 600,
+                  }}
+                >
+                  {loading ? 'Logging in...' : 'Login & Create Room'}
+                </Button>
+              </Box>
             ) : (
               <Box>
                 <Alert
@@ -127,46 +148,8 @@ const CreateRoom: React.FC = () => {
                   Room created successfully! Redirecting...
                 </Alert>
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
-                  Share this room code with your players:
+                  Welcome, {gmName}! Your room is ready.
                 </Typography>
-                <TextField
-                  value={roomCode}
-                  InputProps={{
-                    readOnly: true,
-                    endAdornment: (
-                      <InputAdornment position="end">
-                        <IconButton
-                          onClick={handleCopy}
-                          edge="end"
-                          color={copied ? 'success' : 'default'}
-                        >
-                          {copied ? <CheckCircleIcon /> : <ContentCopyIcon />}
-                        </IconButton>
-                      </InputAdornment>
-                    ),
-                  }}
-                  variant="outlined"
-                  fullWidth
-                  sx={{
-                    '& .MuiOutlinedInput-root': {
-                      fontSize: '1.5rem',
-                      fontWeight: 700,
-                      letterSpacing: '0.2em',
-                      textAlign: 'center',
-                      backgroundColor: 'primary.light',
-                      color: 'primary.contrastText',
-                      '& fieldset': {
-                        borderColor: 'primary.main',
-                        borderWidth: 2,
-                      },
-                    },
-                  }}
-                />
-                {copied && (
-                  <Typography variant="caption" color="success.main" sx={{ mt: 1, display: 'block', textAlign: 'center' }}>
-                    Copied to clipboard!
-                  </Typography>
-                )}
               </Box>
             )}
           </CardContent>
