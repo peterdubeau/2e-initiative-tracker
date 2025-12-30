@@ -1,4 +1,4 @@
-[{
+{
   "name": "Pete",
   "Password": "123456",
   "encounters": [
@@ -44,29 +44,4 @@
       ]
     }
   ]
-},
-{
-  "name": "John",
-  "Password": "123456"
-},
-{
-  "name": "Jordan",
-  "Password": "123456"
-},
-{
-  "name": "Collin",
-  "Password": "123456"
-},
-{
-  "name": "Mark",
-  "Password": "123456"
-},
-{
-  "name": "Matt",
-  "Password": "123456"
-},
-{
-  "name": "Mike",
-  "Password": "123456"
 }
-]

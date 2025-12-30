@@ -382,7 +382,7 @@ const GMView: React.FC = () => {
           GM Controls
         </Typography>
 
-        {encounters.length > 0 && (
+        {encounters.length > 0 && encounters.some(e => e.encounter && Array.isArray(e.encounter) && e.encounter.length > 0) && (
           <Card elevation={4} sx={{ mb: 4, borderRadius: 3 }}>
             <CardContent sx={{ p: 3 }}>
               <Accordion 
@@ -397,7 +397,7 @@ const GMView: React.FC = () => {
                 </AccordionSummary>
                 <AccordionDetails>
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                    {encounters.map((encounter) => (
+                    {encounters.filter(e => e.encounter && Array.isArray(e.encounter) && e.encounter.length > 0).map((encounter) => (
                       <Paper
                         key={encounter.name}
                         elevation={2}

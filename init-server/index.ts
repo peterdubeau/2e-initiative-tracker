@@ -41,14 +41,45 @@ const io = new Server(server, {
 });
 const roomManager = new RoomManager();
 
-// Load GM credentials from GM_list.json
-function loadGMCredentials(): Array<{ name: string; Password: string }> {
+// Load a single GM file
+function loadGMFile(gmName: string): { name: string; Password: string; encounters?: any[] } | null {
   try {
-    const gmListPath = path.join(__dirname, "..", "GM_list.json");
-    const fileContent = fs.readFileSync(gmListPath, "utf-8");
+    const gmFilePath = path.join(__dirname, "..", "gm_data", `${gmName}.json`);
+    const fileContent = fs.readFileSync(gmFilePath, "utf-8");
     return JSON.parse(fileContent);
   } catch (error) {
-    console.error("Error loading GM_list.json:", error);
+    console.error(`Error loading GM file for ${gmName}:`, error);
+    return null;
+  }
+}
+
+// Load GM credentials from individual files in gm_data/
+function loadGMCredentials(): Array<{ name: string; Password: string }> {
+  try {
+    const gmListPath = path.join(__dirname, "..", "gm_data", "GM_list.json");
+    const fileContent = fs.readFileSync(gmListPath, "utf-8");
+    const gmIndex = JSON.parse(fileContent);
+    
+    // Handle both array of names and array of objects
+    const gmNames = Array.isArray(gmIndex)
+      ? gmIndex.map((item: any) => typeof item === 'string' ? item : item.name)
+      : [];
+    
+    const credentials: Array<{ name: string; Password: string }> = [];
+    
+    for (const gmName of gmNames) {
+      const gm = loadGMFile(gmName);
+      if (gm && gm.name && gm.Password) {
+        credentials.push({
+          name: gm.name,
+          Password: gm.Password,
+        });
+      }
+    }
+    
+    return credentials;
+  } catch (error) {
+    console.error("Error loading GM credentials:", error);
     return [];
   }
 }
@@ -150,14 +181,9 @@ app.get("/active-gms", (_req, res) => {
 app.get("/gm-encounters/:gmName", (req, res) => {
   const { gmName } = req.params;
   try {
-    const gmListPath = path.join(__dirname, "..", "GM_list.json");
-    const fileContent = fs.readFileSync(gmListPath, "utf-8");
-    const gmList = JSON.parse(fileContent);
-    const gm = Array.isArray(gmList) 
-      ? gmList.find((g: any) => g.name === gmName)
-      : gmList.name === gmName ? gmList : null;
+    const gm = loadGMFile(gmName);
     
-    if (gm && gm.encounters) {
+    if (gm && gm.encounters && Array.isArray(gm.encounters) && gm.encounters.length > 0) {
       res.json({ encounters: gm.encounters });
     } else {
       res.json({ encounters: [] });
@@ -406,15 +432,10 @@ io.on("connection", (socket: Socket) => {
     console.log(`Loading encounter "${encounterName}" for GM ${gmName}, clearRoom: ${clearRoom}, clearPlayers: ${clearPlayers}, clearMonsters: ${clearMonsters}`);
     
     try {
-      // Load GM_list.json and find the encounter
-      const gmListPath = path.join(__dirname, "..", "GM_list.json");
-      const fileContent = fs.readFileSync(gmListPath, "utf-8");
-      const gmList = JSON.parse(fileContent);
-      const gm = Array.isArray(gmList) 
-        ? gmList.find((g: any) => g.name === gmName)
-        : gmList.name === gmName ? gmList : null;
+      // Load individual GM file
+      const gm = loadGMFile(gmName);
       
-      if (!gm || !gm.encounters) {
+      if (!gm || !gm.encounters || !Array.isArray(gm.encounters) || gm.encounters.length === 0) {
         console.log(`No encounters found for GM ${gmName}`);
         return;
       }
