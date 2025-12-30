@@ -41,49 +41,110 @@ const io = new Server(server, {
 });
 const roomManager = new RoomManager();
 
-// Load a single GM file
-function loadGMFile(gmName: string): { name: string; Password: string; encounters?: any[] } | null {
+// Type for GM data
+type GMData = {
+  name: string;
+  Password: string;
+  encounters?: any[];
+};
+
+// In-memory cache for GM data, keyed by GM name (from decoded "name" field)
+const gmCache = new Map<string, GMData>();
+
+// Decode a base64 encoded GM file
+function decodeBase64GMFile(filePath: string): GMData | null {
   try {
-    const gmFilePath = path.join(__dirname, "..", "gm_data", `${gmName}.json`);
-    const fileContent = fs.readFileSync(gmFilePath, "utf-8");
-    return JSON.parse(fileContent);
+    const fileContent = fs.readFileSync(filePath, "utf-8").trim();
+    const decodedContent = Buffer.from(fileContent, "base64").toString("utf-8");
+    const gmData = JSON.parse(decodedContent) as GMData;
+    return gmData;
   } catch (error) {
-    console.error(`Error loading GM file for ${gmName}:`, error);
+    console.error(`Error decoding GM file ${filePath}:`, error);
     return null;
   }
 }
 
-// Load GM credentials from individual files in gm_data/
-function loadGMCredentials(): Array<{ name: string; Password: string }> {
+// Load all GM files from gm_data/ directory
+function loadAllGMFiles(): Array<{ name: string; Password: string }> {
+  const credentials: Array<{ name: string; Password: string }> = [];
+  const gmDataDir = path.join(__dirname, "..", "gm_data");
+  
   try {
-    const gmListPath = path.join(__dirname, "..", "gm_data", "GM_list.json");
-    const fileContent = fs.readFileSync(gmListPath, "utf-8");
-    const gmIndex = JSON.parse(fileContent);
+    // Check if directory exists
+    if (!fs.existsSync(gmDataDir)) {
+      console.warn(`GM data directory not found: ${gmDataDir}`);
+      return credentials;
+    }
     
-    // Handle both array of names and array of objects
-    const gmNames = Array.isArray(gmIndex)
-      ? gmIndex.map((item: any) => typeof item === 'string' ? item : item.name)
-      : [];
+    // Read all files in the directory
+    const files = fs.readdirSync(gmDataDir);
     
-    const credentials: Array<{ name: string; Password: string }> = [];
+    // Filter for encoded files (*_encoded.txt pattern)
+    const encodedFiles = files.filter((file) => file.endsWith("_encoded.txt"));
     
-    for (const gmName of gmNames) {
-      const gm = loadGMFile(gmName);
-      if (gm && gm.name && gm.Password) {
+    if (encodedFiles.length === 0) {
+      console.warn(`No encoded GM files found in ${gmDataDir}`);
+      return credentials;
+    }
+    
+    // Process each encoded file
+    for (const file of encodedFiles) {
+      const filePath = path.join(gmDataDir, file);
+      
+      try {
+        const gmData = decodeBase64GMFile(filePath);
+        
+        if (!gmData) {
+          console.warn(`Failed to decode file: ${file}`);
+          continue;
+        }
+        
+        // Validate required fields
+        if (!gmData.name || !gmData.Password) {
+          console.warn(`GM file ${file} missing required fields (name or Password)`);
+          continue;
+        }
+        
+        // Check for duplicate names
+        if (gmCache.has(gmData.name)) {
+          console.warn(`Duplicate GM name found: ${gmData.name} (from file ${file}). Overwriting previous entry.`);
+        }
+        
+        // Store in cache using the "name" field from decoded content
+        gmCache.set(gmData.name, gmData);
+        
+        // Add to credentials array
         credentials.push({
-          name: gm.name,
-          Password: gm.Password,
+          name: gmData.name,
+          Password: gmData.Password,
         });
+        
+        console.log(`Loaded GM: ${gmData.name} from ${file}`);
+      } catch (error) {
+        console.error(`Error processing file ${file}:`, error);
+        // Continue with other files
       }
     }
     
-    return credentials;
+    console.log(`Loaded ${credentials.length} GM(s) from ${encodedFiles.length} file(s)`);
   } catch (error) {
-    console.error("Error loading GM credentials:", error);
-    return [];
+    console.error("Error loading GM files:", error);
   }
+  
+  return credentials;
 }
 
+// Load a single GM from cache by name
+function loadGMFile(gmName: string): GMData | null {
+  return gmCache.get(gmName) || null;
+}
+
+// Load GM credentials (initializes cache on startup)
+function loadGMCredentials(): Array<{ name: string; Password: string }> {
+  return loadAllGMFiles();
+}
+
+// Initialize cache on startup
 const gmCredentials = loadGMCredentials();
 
 // Validate GM credentials
@@ -181,7 +242,7 @@ app.get("/active-gms", (_req, res) => {
 app.get("/gm-encounters/:gmName", (req, res) => {
   const { gmName } = req.params;
   try {
-    const gm = loadGMFile(gmName);
+    const gm = gmCache.get(gmName);
     
     if (gm && gm.encounters && Array.isArray(gm.encounters) && gm.encounters.length > 0) {
       res.json({ encounters: gm.encounters });
@@ -432,8 +493,8 @@ io.on("connection", (socket: Socket) => {
     console.log(`Loading encounter "${encounterName}" for GM ${gmName}, clearRoom: ${clearRoom}, clearPlayers: ${clearPlayers}, clearMonsters: ${clearMonsters}`);
     
     try {
-      // Load individual GM file
-      const gm = loadGMFile(gmName);
+      // Get GM from cache
+      const gm = gmCache.get(gmName);
       
       if (!gm || !gm.encounters || !Array.isArray(gm.encounters) || gm.encounters.length === 0) {
         console.log(`No encounters found for GM ${gmName}`);
