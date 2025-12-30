@@ -27,6 +27,7 @@ import DragIndicatorIcon from "@mui/icons-material/DragIndicator";
 import LinkIcon from "@mui/icons-material/Link";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import SortIcon from "@mui/icons-material/Sort";
+import ClearAllIcon from "@mui/icons-material/ClearAll";
 
 import {
   DndContext,
@@ -192,6 +193,7 @@ const GMView: React.FC = () => {
   const [monsterHidden, setMonsterHidden] = useState(false);
   const [copied, setCopied] = useState(false);
   const [sortDialogOpen, setSortDialogOpen] = useState(false);
+  const [clearAllDialogOpen, setClearAllDialogOpen] = useState(false);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -264,6 +266,20 @@ const GMView: React.FC = () => {
 
   const handleCancelSort = () => {
     setSortDialogOpen(false);
+  };
+
+  const handleClearAll = () => {
+    setClearAllDialogOpen(true);
+  };
+
+  const handleConfirmClearAll = () => {
+    const socket = getSocket();
+    socket.emit("clear-all-players");
+    setClearAllDialogOpen(false);
+  };
+
+  const handleCancelClearAll = () => {
+    setClearAllDialogOpen(false);
   };
 
   return (
@@ -411,23 +427,39 @@ const GMView: React.FC = () => {
 
         <Card elevation={4} sx={{ mb: 4, borderRadius: 3 }}>
           <CardContent sx={{ p: 3 }}>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3, flexWrap: 'wrap', gap: 2 }}>
               <Typography variant="h6" sx={{ fontWeight: 600 }}>
                 Initiative Order
               </Typography>
-              <Button
-                variant="outlined"
-                startIcon={<SortIcon />}
-                onClick={handleSortByInitiative}
-                disabled={entries.length === 0}
-                sx={{
-                  textTransform: 'none',
-                  fontWeight: 600,
-                  borderRadius: 2,
-                }}
-              >
-                Sort by Initiative
-              </Button>
+              <Box sx={{ display: 'flex', gap: 1 }}>
+                <Button
+                  variant="outlined"
+                  startIcon={<SortIcon />}
+                  onClick={handleSortByInitiative}
+                  disabled={entries.length === 0}
+                  sx={{
+                    textTransform: 'none',
+                    fontWeight: 600,
+                    borderRadius: 2,
+                  }}
+                >
+                  Sort by Initiative
+                </Button>
+                <Button
+                  variant="outlined"
+                  color="error"
+                  startIcon={<ClearAllIcon />}
+                  onClick={handleClearAll}
+                  disabled={entries.length === 0}
+                  sx={{
+                    textTransform: 'none',
+                    fontWeight: 600,
+                    borderRadius: 2,
+                  }}
+                >
+                  Clear All
+                </Button>
+              </Box>
             </Box>
             {entries.length === 0 ? (
               <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', py: 4 }}>
@@ -481,6 +513,31 @@ const GMView: React.FC = () => {
             </Button>
             <Button onClick={handleConfirmSort} variant="contained" autoFocus>
               Sort
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        <Dialog
+          open={clearAllDialogOpen}
+          onClose={handleCancelClearAll}
+          aria-labelledby="clear-all-dialog-title"
+          aria-describedby="clear-all-dialog-description"
+        >
+          <DialogTitle id="clear-all-dialog-title">
+            Clear All Players?
+          </DialogTitle>
+          <DialogContent>
+            <DialogContentText id="clear-all-dialog-description">
+              This will remove all players and monsters from the room and send all players back to the home screen. 
+              This action cannot be undone. Continue?
+            </DialogContentText>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={handleCancelClearAll} color="inherit">
+              Cancel
+            </Button>
+            <Button onClick={handleConfirmClearAll} variant="contained" color="error" autoFocus>
+              Clear All
             </Button>
           </DialogActions>
         </Dialog>

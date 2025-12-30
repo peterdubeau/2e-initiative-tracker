@@ -30,13 +30,15 @@ export class RoomManager {
     return Object.keys(this.rooms);
   }
 
-  addPlayer(gmName: string, player: Omit<Entry, "id" | "isMonster" | "hidden">) {
-    this.rooms[gmName].entries.push({
+  addPlayer(gmName: string, player: Omit<Entry, "id" | "isMonster" | "hidden">): Entry {
+    const entry: Entry = {
       id: uuidv4(),
       ...player,
       isMonster: false,
       hidden: false,
-    });
+    };
+    this.rooms[gmName].entries.push(entry);
+    return entry;
   }
 
   addMonster(
@@ -112,5 +114,29 @@ export class RoomManager {
       // If current entry not found, reset to 0
       room.currentTurnIndex = 0;
     }
+  }
+
+  clearAllPlayers(gmName: string): string[] {
+    const room = this.rooms[gmName];
+    if (!room) return [];
+
+    // Get IDs of all non-monster entries (players) before removing them
+    const playerIds = room.entries
+      .filter((e) => !e.isMonster)
+      .map((e) => e.id);
+
+    // Remove all entries (players and monsters)
+    room.entries = [];
+
+    // Reset turn index
+    room.currentTurnIndex = 0;
+
+    return playerIds;
+  }
+
+  getEntryById(gmName: string, id: string): Entry | undefined {
+    const room = this.rooms[gmName];
+    if (!room) return undefined;
+    return room.entries.find((e) => e.id === id);
   }
 }

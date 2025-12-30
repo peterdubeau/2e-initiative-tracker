@@ -156,6 +156,10 @@ app.post("/create-room", express.json(), (req, res) => {
   }
 });
 
+// Track which socket belongs to which player entry
+const socketToEntryId = new Map<string, string>();
+const entryIdToSockets = new Map<string, Set<string>>();
+
 io.on("connection", (socket: Socket) => {
   const { gmName, gm } = socket.handshake.query as {
     gmName: string;
@@ -177,19 +181,71 @@ io.on("connection", (socket: Socket) => {
   socket.join(gmName);
   socket.emit("room-update", roomManager.getRoomState(gmName));
 
+  // Clean up socket tracking on disconnect
+  socket.on("disconnect", () => {
+    const entryId = socketToEntryId.get(socket.id);
+    if (entryId) {
+      const sockets = entryIdToSockets.get(entryId);
+      if (sockets) {
+        sockets.delete(socket.id);
+        if (sockets.size === 0) {
+          entryIdToSockets.delete(entryId);
+        }
+      }
+      socketToEntryId.delete(socket.id);
+    }
+  });
+
   socket.onAny((eventName, ...args) => {
     console.log(`⚡ event ${eventName}`, args);
   });
 
   socket.on("join-room", (player) => {
-    console.log("👤 join-room payload:", player);
-    roomManager.addPlayer(gmName, player);
+    console.log("👤 join-room payload:", player, "socket.id:", socket.id);
+    
+    // Check if player already exists in room (by name and color)
+    const room = roomManager.getRoomState(gmName);
+    const existingEntry = room.entries.find(
+      (e) => !e.isMonster && e.name === player.name && e.color === player.color
+    );
+    
+    let entry;
+    if (existingEntry) {
+      // Player already exists, just re-track the socket
+      entry = existingEntry;
+      console.log(`🔄 Re-tracking socket ${socket.id} -> existing entry ${entry.id} (${entry.name})`);
+    } else {
+      // New player, add them
+      entry = roomManager.addPlayer(gmName, player);
+      console.log(`➕ New player added: ${entry.name} (id: ${entry.id})`);
+    }
+    
+    // Track this socket with the entry ID (remove old tracking first)
+    const oldEntryId = socketToEntryId.get(socket.id);
+    if (oldEntryId && oldEntryId !== entry.id) {
+      console.log(`🔄 Removing old tracking: socket ${socket.id} was tracked to entry ${oldEntryId}`);
+      const oldSockets = entryIdToSockets.get(oldEntryId);
+      if (oldSockets) {
+        oldSockets.delete(socket.id);
+        if (oldSockets.size === 0) {
+          entryIdToSockets.delete(oldEntryId);
+        }
+      }
+    }
+    
+    socketToEntryId.set(socket.id, entry.id);
+    if (!entryIdToSockets.has(entry.id)) {
+      entryIdToSockets.set(entry.id, new Set());
+    }
+    entryIdToSockets.get(entry.id)!.add(socket.id);
+    console.log(`📌 Tracked socket ${socket.id} -> entry ${entry.id} (${entry.name})`);
+    console.log(`   Total sockets for this entry:`, entryIdToSockets.get(entry.id)!.size);
 
     // right here, log the full room state so we can see it growing
     const newState = roomManager.getRoomState(gmName);
     console.log(
       "📣 broadcasting room-update:",
-      newState.entries.map((e) => e.name)
+      newState.entries.map((e) => `${e.name} (${e.id})`)
     );
     console.log(
       "🛋️  [server] sockets in room:",
@@ -224,9 +280,43 @@ io.on("connection", (socket: Socket) => {
   });
 
   socket.on("remove-entry", (id) => {
+    console.log(`🔴 remove-entry called for id: ${id}`);
+    const entry = roomManager.getEntryById(gmName, id);
+    console.log(`Entry found:`, entry ? `${entry.name} (isMonster: ${entry.isMonster})` : 'not found');
+    
+    // If this was a player (not a monster), kick them BEFORE removing
+    if (entry && !entry.isMonster) {
+      const sockets = entryIdToSockets.get(id);
+      console.log(`📋 Tracking map state:`);
+      console.log(`  - entryIdToSockets keys:`, Array.from(entryIdToSockets.keys()));
+      console.log(`  - socketToEntryId entries:`, Array.from(socketToEntryId.entries()));
+      console.log(`  - Sockets for entry ${id}:`, sockets ? Array.from(sockets) : 'none');
+      
+      if (sockets && sockets.size > 0) {
+        sockets.forEach((socketId) => {
+          console.log(`📤 Emitting 'kicked' to socket ${socketId}`);
+          const targetSocket = io.sockets.sockets.get(socketId);
+          if (targetSocket) {
+            console.log(`✅ Socket ${socketId} found, emitting kicked event`);
+            targetSocket.emit("kicked");
+          } else {
+            console.log(`❌ Socket ${socketId} not found in io.sockets.sockets`);
+            console.log(`   Available sockets:`, Array.from(io.sockets.sockets.keys()));
+          }
+          socketToEntryId.delete(socketId);
+        });
+        entryIdToSockets.delete(id);
+      } else {
+        console.log(`⚠️ No sockets found for entry ${id} (${entry.name})`);
+        console.log(`   This means the socket was never tracked or was disconnected`);
+      }
+    } else if (entry && entry.isMonster) {
+      console.log(`👹 Removing monster ${entry.name}, no kick needed`);
+    }
+    
     roomManager.removeEntry(gmName, id);
     io.to(gmName).emit("room-update", roomManager.getRoomState(gmName));
-    console.log("remove-entry", id);
+    console.log(`✅ Entry ${id} removed, room-update sent`);
   });
 
   socket.on("toggle-hidden", (id) => {
@@ -239,6 +329,50 @@ io.on("connection", (socket: Socket) => {
     roomManager.sortByInitiative(gmName);
     io.to(gmName).emit("room-update", roomManager.getRoomState(gmName));
     console.log("sort-by-initiative");
+  });
+
+  socket.on("clear-all-players", () => {
+    const playerIds = roomManager.clearAllPlayers(gmName);
+    
+    console.log(`Clearing all players, found ${playerIds.length} player IDs:`, playerIds);
+    
+    // Collect all player sockets to kick
+    const socketsToKick = new Set<string>();
+    
+    // Kick all players by entry ID
+    playerIds.forEach((entryId) => {
+      const sockets = entryIdToSockets.get(entryId);
+      if (sockets) {
+        sockets.forEach((socketId) => {
+          socketsToKick.add(socketId);
+        });
+        entryIdToSockets.delete(entryId);
+      }
+    });
+    
+    // Also kick any player sockets in the room that might not be tracked
+    const roomSockets = io.sockets.adapter.rooms.get(gmName);
+    if (roomSockets) {
+      roomSockets.forEach((socketId) => {
+        const s = io.sockets.sockets.get(socketId);
+        if (s && s.handshake.query.gm === "false") {
+          socketsToKick.add(socketId);
+        }
+      });
+    }
+    
+    // Emit kicked to all player sockets
+    socketsToKick.forEach((socketId) => {
+      const targetSocket = io.sockets.sockets.get(socketId);
+      if (targetSocket) {
+        console.log(`Kicking socket ${socketId}`);
+        targetSocket.emit("kicked");
+        socketToEntryId.delete(socketId);
+      }
+    });
+    
+    io.to(gmName).emit("room-update", roomManager.getRoomState(gmName));
+    console.log("clear-all-players completed, kicked", socketsToKick.size, "sockets");
   });
 });
 // ensure PORT is numeric
