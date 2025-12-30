@@ -96,4 +96,24 @@ export class RoomManager {
     const entry = this.rooms[code].entries.find((e) => e.id === id);
     if (entry) entry.hidden = !entry.hidden;
   }
+
+  sortByInitiative(code: string) {
+    const room = this.rooms[code];
+    if (!room) return;
+
+    // Store the current entry ID before sorting
+    const currentEntryId = room.entries[room.currentTurnIndex]?.id;
+
+    // Sort entries by roll descending
+    room.entries.sort((a, b) => b.roll - a.roll);
+
+    // Find the new index of the current entry after sorting
+    const newIndex = room.entries.findIndex((e) => e.id === currentEntryId);
+    if (newIndex !== -1) {
+      room.currentTurnIndex = newIndex;
+    } else {
+      // If current entry not found, reset to 0
+      room.currentTurnIndex = 0;
+    }
+  }
 }

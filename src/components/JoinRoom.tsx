@@ -1,6 +1,6 @@
 // src/components/JoinRoom.tsx
 import { useState, useEffect } from "react";
-import { Box, TextField, Button, Typography, Alert } from "@mui/material";
+import { Box, TextField, Button, Typography, Alert, Card, CardContent, Container } from "@mui/material";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAppDispatch } from "../store/store";
 import { setRoom } from "../store/roomSlice";
@@ -121,73 +121,202 @@ export default function JoinRoom() {
   // Step 1: enter/validate room code
   if (step === "enterCode") {
     return (
-      <Box sx={{ p: 2, maxWidth: 360, mx: "auto" }}>
-        <Typography variant="h6" gutterBottom>
-          Enter Room Code
-        </Typography>
-        {error && (
-          <Alert severity="error" sx={{ mb: 2 }}>
-            {error}
-          </Alert>
-        )}
-        <TextField
-          label="Room Code"
-          value={code}
-          onChange={(e) => setCode(e.target.value.toUpperCase())}
-          inputProps={{ maxLength: 4 }}
-          fullWidth
-          margin="normal"
-        />
-        <Button
-          variant="contained"
-          fullWidth
-          onClick={handleCodeSubmit}
-          disabled={loading || code.length !== 4}
+      <Container maxWidth="sm">
+        <Box
+          sx={{
+            minHeight: '100vh',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            py: 4,
+          }}
         >
-          {loading ? "Connecting…" : "Connect"}
-        </Button>
-      </Box>
+          <Card
+            elevation={8}
+            sx={{
+              width: '100%',
+              borderRadius: 4,
+            }}
+          >
+            <CardContent sx={{ p: 4 }}>
+              <Box sx={{ textAlign: 'center', mb: 4 }}>
+                <Typography variant="h4" component="h1" gutterBottom sx={{ fontWeight: 700 }}>
+                  Enter Room Code
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Enter the 4-letter code provided by your Game Master
+                </Typography>
+              </Box>
+
+              {error && (
+                <Alert severity="error" sx={{ mb: 3 }}>
+                  {error}
+                </Alert>
+              )}
+
+              <TextField
+                label="Room Code"
+                value={code}
+                onChange={(e) => setCode(e.target.value.toUpperCase())}
+                inputProps={{
+                  maxLength: 4,
+                  style: {
+                    textAlign: 'center',
+                    fontSize: '1.5rem',
+                    fontWeight: 700,
+                    letterSpacing: '0.2em',
+                  },
+                }}
+                fullWidth
+                margin="normal"
+                sx={{ mb: 3 }}
+              />
+
+              <Button
+                variant="contained"
+                fullWidth
+                size="large"
+                onClick={handleCodeSubmit}
+                disabled={loading || code.length !== 4}
+                sx={{
+                  py: 1.5,
+                  fontSize: '1.1rem',
+                  borderRadius: 3,
+                  textTransform: 'none',
+                  fontWeight: 600,
+                }}
+              >
+                {loading ? "Connecting…" : "Connect"}
+              </Button>
+            </CardContent>
+          </Card>
+        </Box>
+      </Container>
     );
   }
 
   // Step 2: collect player details
   return (
-    <Box sx={{ p: 2, maxWidth: 360, mx: "auto" }}>
-      <Typography variant="h6" gutterBottom>
-        Join Game {code}
-      </Typography>
-      {error && (
-        <Alert severity="error" sx={{ mb: 2 }}>
-          {error}
-        </Alert>
-      )}
-      <TextField
-        label="Character Name"
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        fullWidth
-        margin="normal"
-      />
-      <TextField
-        label="Initiative Roll"
-        type="number"
-        value={initiative}
-        onChange={(e) => setInitiative(parseInt(e.target.value, 10) || 0)}
-        fullWidth
-        margin="normal"
-      />
-      <Box sx={{ mt: 2, display: "flex", alignItems: "center" }}>
-        <Typography sx={{ mr: 1 }}>Color:</Typography>
-        <input
-          type="color"
-          value={color}
-          onChange={(e) => setColor(e.target.value)}
-          style={{ width: 32, height: 32, border: "none", padding: 0 }}
-        />
+    <Container maxWidth="sm">
+      <Box
+        sx={{
+          minHeight: '100vh',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          py: 4,
+        }}
+      >
+        <Card
+          elevation={8}
+          sx={{
+            width: '100%',
+            borderRadius: 4,
+          }}
+        >
+          <CardContent sx={{ p: 4 }}>
+            <Box sx={{ textAlign: 'center', mb: 4 }}>
+              <Typography variant="h4" component="h1" gutterBottom sx={{ fontWeight: 700 }}>
+                Join Game
+              </Typography>
+              <Typography variant="h6" color="primary.main" sx={{ fontWeight: 600, letterSpacing: '0.2em' }}>
+                {code}
+              </Typography>
+            </Box>
+
+            {error && (
+              <Alert severity="error" sx={{ mb: 3 }}>
+                {error}
+              </Alert>
+            )}
+
+            <TextField
+              label="Character Name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              fullWidth
+              margin="normal"
+              sx={{ mb: 2 }}
+              required
+            />
+
+            <TextField
+              label="Initiative Roll"
+              type="number"
+              value={initiative}
+              onChange={(e) => setInitiative(parseInt(e.target.value, 10) || 0)}
+              fullWidth
+              margin="normal"
+              sx={{ mb: 3 }}
+              inputProps={{ min: 0 }}
+            />
+
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                mb: 3,
+                p: 2,
+                backgroundColor: 'background.default',
+                borderRadius: 2,
+              }}
+            >
+              <Typography variant="body1" sx={{ fontWeight: 500 }}>
+                Character Color:
+              </Typography>
+              <Box
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 1,
+                }}
+              >
+                <Box
+                  sx={{
+                    width: 40,
+                    height: 40,
+                    borderRadius: 2,
+                    backgroundColor: color,
+                    border: '2px solid',
+                    borderColor: 'divider',
+                    boxShadow: 2,
+                  }}
+                />
+                <input
+                  type="color"
+                  value={color}
+                  onChange={(e) => setColor(e.target.value)}
+                  style={{
+                    width: 50,
+                    height: 40,
+                    border: 'none',
+                    borderRadius: 8,
+                    cursor: 'pointer',
+                  }}
+                />
+              </Box>
+            </Box>
+
+            <Button
+              variant="contained"
+              fullWidth
+              size="large"
+              onClick={handleJoin}
+              disabled={!name.trim()}
+              sx={{
+                py: 1.5,
+                fontSize: '1.1rem',
+                borderRadius: 3,
+                textTransform: 'none',
+                fontWeight: 600,
+              }}
+            >
+              Join Room
+            </Button>
+          </CardContent>
+        </Card>
       </Box>
-      <Button variant="contained" fullWidth sx={{ mt: 2 }} onClick={handleJoin}>
-        Join Room
-      </Button>
-    </Box>
+    </Container>
   );
 }

@@ -178,6 +178,12 @@ io.on("connection", (socket: Socket) => {
     io.to(roomCode).emit("room-update", roomManager.getRoomState(roomCode));
     console.log("toggle-hidden", id);
   });
+
+  socket.on("sort-by-initiative", () => {
+    roomManager.sortByInitiative(roomCode);
+    io.to(roomCode).emit("room-update", roomManager.getRoomState(roomCode));
+    console.log("sort-by-initiative");
+  });
 });
 // ensure PORT is numeric
 const PORT = parseInt(process.env.PORT || "3001", 10);
