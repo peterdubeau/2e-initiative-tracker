@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Box,
   Button,
@@ -17,7 +17,11 @@ import {
   DialogContent,
   DialogContentText,
   DialogActions,
+  Accordion,
+  AccordionSummary,
+  AccordionDetails,
 } from "@mui/material";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/Delete";
 import VisibilityIcon from "@mui/icons-material/Visibility";
@@ -47,6 +51,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { useSelector } from "react-redux";
 import type { RootState } from "../store/store";
 import { getSocket } from "../services/socket";
+import { api } from "../services/api";
 
 // Sortable item wrapper
 const SortableItem: React.FC<{
@@ -194,6 +199,10 @@ const GMView: React.FC = () => {
   const [copied, setCopied] = useState(false);
   const [sortDialogOpen, setSortDialogOpen] = useState(false);
   const [clearAllDialogOpen, setClearAllDialogOpen] = useState(false);
+  const [encounters, setEncounters] = useState<Array<{name: string, encounter: any[]}>>([]);
+  const [encountersExpanded, setEncountersExpanded] = useState(false);
+  const [encounterModalOpen, setEncounterModalOpen] = useState(false);
+  const [selectedEncounter, setSelectedEncounter] = useState<string | null>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -201,6 +210,21 @@ const GMView: React.FC = () => {
       activationConstraint: { delay: 100, tolerance: 5 },
     })
   );
+
+  // Fetch encounters on mount
+  useEffect(() => {
+    const fetchEncounters = async () => {
+      if (!gmName) return;
+      try {
+        const resp = await api.get(`/gm-encounters/${gmName}`);
+        setEncounters(resp.data.encounters || []);
+      } catch (error) {
+        console.error("Failed to fetch encounters:", error);
+        setEncounters([]);
+      }
+    };
+    fetchEncounters();
+  }, [gmName]);
 
   const handleAddMonster = () => {
     const socket = getSocket();
@@ -282,6 +306,29 @@ const GMView: React.FC = () => {
     setClearAllDialogOpen(false);
   };
 
+  const handleEncounterClick = (encounterName: string) => {
+    setSelectedEncounter(encounterName);
+    setEncounterModalOpen(true);
+  };
+
+  const handleLoadEncounter = (clearRoom: boolean, clearPlayers: boolean, clearMonsters?: boolean) => {
+    if (!selectedEncounter) return;
+    const socket = getSocket();
+    socket.emit("load-encounter", {
+      encounterName: selectedEncounter,
+      clearRoom,
+      clearPlayers,
+      clearMonsters,
+    });
+    setEncounterModalOpen(false);
+    setSelectedEncounter(null);
+  };
+
+  const handleCancelEncounter = () => {
+    setEncounterModalOpen(false);
+    setSelectedEncounter(null);
+  };
+
   return (
     <Container maxWidth="md">
       <Box sx={{ py: 4, touchAction: "none" }}>
@@ -334,6 +381,52 @@ const GMView: React.FC = () => {
         <Typography variant="h4" component="h1" gutterBottom sx={{ fontWeight: 700, mb: 4 }}>
           GM Controls
         </Typography>
+
+        {encounters.length > 0 && (
+          <Card elevation={4} sx={{ mb: 4, borderRadius: 3 }}>
+            <CardContent sx={{ p: 3 }}>
+              <Accordion 
+                expanded={encountersExpanded} 
+                onChange={(_, isExpanded) => setEncountersExpanded(isExpanded)}
+                sx={{ boxShadow: 'none' }}
+              >
+                <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                  <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                    Pre-loaded Encounters
+                  </Typography>
+                </AccordionSummary>
+                <AccordionDetails>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                    {encounters.map((encounter) => (
+                      <Paper
+                        key={encounter.name}
+                        elevation={2}
+                        sx={{
+                          p: 2,
+                          borderRadius: 2,
+                          cursor: 'pointer',
+                          transition: 'all 0.2s ease',
+                          '&:hover': {
+                            elevation: 4,
+                            backgroundColor: 'action.hover',
+                          },
+                        }}
+                        onClick={() => handleEncounterClick(encounter.name)}
+                      >
+                        <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                          {encounter.name}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          {encounter.encounter?.length || 0} monsters
+                        </Typography>
+                      </Paper>
+                    ))}
+                  </Box>
+                </AccordionDetails>
+              </Accordion>
+            </CardContent>
+          </Card>
+        )}
 
         <Card elevation={4} sx={{ mb: 4, borderRadius: 3 }}>
           <CardContent sx={{ p: 3 }}>
@@ -538,6 +631,65 @@ const GMView: React.FC = () => {
             </Button>
             <Button onClick={handleConfirmClearAll} variant="contained" color="error" autoFocus>
               Clear All
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        <Dialog
+          open={encounterModalOpen}
+          onClose={handleCancelEncounter}
+          aria-labelledby="encounter-dialog-title"
+          aria-describedby="encounter-dialog-description"
+        >
+          <DialogTitle id="encounter-dialog-title">
+            Load Encounter: {selectedEncounter}
+          </DialogTitle>
+          <DialogContent>
+            <DialogContentText id="encounter-dialog-description" sx={{ mb: 2 }}>
+              How would you like to load this encounter?
+            </DialogContentText>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <Button
+                variant="contained"
+                color="primary"
+                fullWidth
+                onClick={() => handleLoadEncounter(false, false)}
+                sx={{ textTransform: 'none', py: 1.5 }}
+              >
+                Load Encounter
+              </Button>
+              <Button
+                variant="outlined"
+                color="error"
+                fullWidth
+                onClick={() => handleLoadEncounter(true, false)}
+                sx={{ textTransform: 'none', py: 1.5 }}
+              >
+                Clear Room Before Loading
+              </Button>
+              <Button
+                variant="outlined"
+                color="warning"
+                fullWidth
+                onClick={() => handleLoadEncounter(false, true)}
+                sx={{ textTransform: 'none', py: 1.5 }}
+              >
+                Clear Players Before Loading
+              </Button>
+              <Button
+                variant="outlined"
+                color="info"
+                fullWidth
+                onClick={() => handleLoadEncounter(false, false, true)}
+                sx={{ textTransform: 'none', py: 1.5 }}
+              >
+                Clear Monsters and Load
+              </Button>
+            </Box>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={handleCancelEncounter} color="inherit">
+              Cancel
             </Button>
           </DialogActions>
         </Dialog>

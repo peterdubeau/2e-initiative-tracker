@@ -15,12 +15,25 @@ export default function JoinRoom() {
   const [gmList, setGmList] = useState<string[]>([]);
   const [loadingGMs, setLoadingGMs] = useState(true);
   const [name, setName] = useState("");
-  const [initiative, setInitiative] = useState<number>(0);
+  const [initiative, setInitiative] = useState<string>("");
   const [color, setColor] = useState("#2196f3");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
+
+  // Load saved player name from localStorage on mount
+  useEffect(() => {
+    const savedName = localStorage.getItem("playerName");
+    if (savedName) {
+      setName(savedName);
+    }
+  }, []);
+
+  // Generate random hex color
+  function generateRandomColor(): string {
+    return "#" + Math.floor(Math.random() * 16777215).toString(16).padStart(6, "0");
+  }
 
   // Fetch active GMs on mount
   useEffect(() => {
@@ -91,15 +104,28 @@ export default function JoinRoom() {
       setError("Name is required");
       return;
     }
+    if (!initiative || initiative === "") {
+      setError("Initiative is required");
+      return;
+    }
+    
     setError("");
+    
+    // Save player name to localStorage
+    localStorage.setItem("playerName", name.trim());
+    
+    // Assign random color if still using default
+    const finalColor = color === "#2196f3" ? generateRandomColor() : color;
+    
     dispatch(setRoom({ gmName: selectedGmName, isGM: false }));
     const socket = getSocket()!;
+    const initiativeNumber = parseInt(initiative, 10);
     socket.emit("join-room", {
       name: name.trim(),
-      roll: initiative,
-      color,
+      roll: initiativeNumber,
+      color: finalColor,
     });
-    const pi = { name: name.trim(), roll: initiative, color };
+    const pi = { name: name.trim(), roll: initiativeNumber, color: finalColor };
     Object.entries(pi).forEach(([key, value]) => {
       sessionStorage.setItem(key, value as string);
     });
@@ -234,11 +260,12 @@ export default function JoinRoom() {
               label="Initiative Roll"
               type="number"
               value={initiative}
-              onChange={(e) => setInitiative(parseInt(e.target.value, 10) || 0)}
+              onChange={(e) => setInitiative(e.target.value)}
               fullWidth
               margin="normal"
               sx={{ mb: 3 }}
               inputProps={{ min: 0 }}
+              required
             />
 
             <Box
@@ -293,7 +320,7 @@ export default function JoinRoom() {
               fullWidth
               size="large"
               onClick={handleJoin}
-              disabled={!name.trim()}
+              disabled={!name.trim() || !initiative || initiative === ""}
               sx={{
                 py: 1.5,
                 fontSize: '1.1rem',

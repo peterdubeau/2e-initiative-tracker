@@ -146,6 +146,33 @@ app.get("/active-gms", (_req, res) => {
   res.json({ gms: activeGMs });
 });
 
+// Get encounters for a specific GM
+app.get("/gm-encounters/:gmName", (req, res) => {
+  const { gmName } = req.params;
+  try {
+    const gmListPath = path.join(__dirname, "..", "GM_list.json");
+    const fileContent = fs.readFileSync(gmListPath, "utf-8");
+    const gmList = JSON.parse(fileContent);
+    const gm = Array.isArray(gmList) 
+      ? gmList.find((g: any) => g.name === gmName)
+      : gmList.name === gmName ? gmList : null;
+    
+    if (gm && gm.encounters) {
+      res.json({ encounters: gm.encounters });
+    } else {
+      res.json({ encounters: [] });
+    }
+  } catch (error) {
+    console.error("Error loading GM encounters:", error);
+    res.json({ encounters: [] });
+  }
+});
+
+// Generate random roll between 7 and 27 (inclusive)
+function generateRandomRoll(): number {
+  return Math.floor(Math.random() * 21) + 7; // 21 possible values: 7-27
+}
+
 // Legacy endpoint - kept for backward compatibility but will be removed
 app.post("/create-room", express.json(), (req, res) => {
   const { gmName } = req.body;
@@ -373,6 +400,116 @@ io.on("connection", (socket: Socket) => {
     
     io.to(gmName).emit("room-update", roomManager.getRoomState(gmName));
     console.log("clear-all-players completed, kicked", socketsToKick.size, "sockets");
+  });
+
+  socket.on("load-encounter", ({ encounterName, clearRoom, clearPlayers, clearMonsters }: { encounterName: string; clearRoom: boolean; clearPlayers: boolean; clearMonsters?: boolean }) => {
+    console.log(`Loading encounter "${encounterName}" for GM ${gmName}, clearRoom: ${clearRoom}, clearPlayers: ${clearPlayers}, clearMonsters: ${clearMonsters}`);
+    
+    try {
+      // Load GM_list.json and find the encounter
+      const gmListPath = path.join(__dirname, "..", "GM_list.json");
+      const fileContent = fs.readFileSync(gmListPath, "utf-8");
+      const gmList = JSON.parse(fileContent);
+      const gm = Array.isArray(gmList) 
+        ? gmList.find((g: any) => g.name === gmName)
+        : gmList.name === gmName ? gmList : null;
+      
+      if (!gm || !gm.encounters) {
+        console.log(`No encounters found for GM ${gmName}`);
+        return;
+      }
+      
+      const encounter = gm.encounters.find((e: any) => e.name === encounterName);
+      if (!encounter || !encounter.encounter) {
+        console.log(`Encounter "${encounterName}" not found`);
+        return;
+      }
+      
+      // Clear room if requested
+      if (clearRoom) {
+        const playerIds = roomManager.clearAllPlayers(gmName);
+        // Kick all players
+        const socketsToKick = new Set<string>();
+        playerIds.forEach((entryId) => {
+          const sockets = entryIdToSockets.get(entryId);
+          if (sockets) {
+            sockets.forEach((socketId) => {
+              socketsToKick.add(socketId);
+            });
+            entryIdToSockets.delete(entryId);
+          }
+        });
+        const roomSockets = io.sockets.adapter.rooms.get(gmName);
+        if (roomSockets) {
+          roomSockets.forEach((socketId) => {
+            const s = io.sockets.sockets.get(socketId);
+            if (s && s.handshake.query.gm === "false") {
+              socketsToKick.add(socketId);
+            }
+          });
+        }
+        socketsToKick.forEach((socketId) => {
+          const targetSocket = io.sockets.sockets.get(socketId);
+          if (targetSocket) {
+            targetSocket.emit("kicked");
+            socketToEntryId.delete(socketId);
+          }
+        });
+      } else if (clearPlayers) {
+        const playerIds = roomManager.clearPlayersOnly(gmName);
+        // Kick all players
+        const socketsToKick = new Set<string>();
+        playerIds.forEach((entryId) => {
+          const sockets = entryIdToSockets.get(entryId);
+          if (sockets) {
+            sockets.forEach((socketId) => {
+              socketsToKick.add(socketId);
+            });
+            entryIdToSockets.delete(entryId);
+          }
+        });
+        const roomSockets = io.sockets.adapter.rooms.get(gmName);
+        if (roomSockets) {
+          roomSockets.forEach((socketId) => {
+            const s = io.sockets.sockets.get(socketId);
+            if (s && s.handshake.query.gm === "false") {
+              socketsToKick.add(socketId);
+            }
+          });
+        }
+        socketsToKick.forEach((socketId) => {
+          const targetSocket = io.sockets.sockets.get(socketId);
+          if (targetSocket) {
+            targetSocket.emit("kicked");
+            socketToEntryId.delete(socketId);
+          }
+        });
+      } else if (clearMonsters) {
+        roomManager.clearMonstersOnly(gmName);
+      }
+      
+      // Load monsters from encounter
+      encounter.encounter.forEach((monster: any) => {
+        const roll = monster.roll !== undefined ? monster.roll : generateRandomRoll();
+        const color = monster.color || "#888888";
+        const hidden = monster.hidden !== undefined ? monster.hidden : false;
+        
+        roomManager.addMonster(gmName, {
+          name: monster.name,
+          roll: roll,
+          color: color,
+          hidden: hidden,
+        });
+        
+        console.log(`Added monster: ${monster.name}, roll: ${roll}, color: ${color}, hidden: ${hidden}`);
+      });
+      
+      // Emit room update
+      io.to(gmName).emit("room-update", roomManager.getRoomState(gmName));
+      console.log(`Encounter "${encounterName}" loaded successfully`);
+    } catch (error) {
+      console.error("Error loading encounter:", error);
+    }
   });
 });
 // ensure PORT is numeric

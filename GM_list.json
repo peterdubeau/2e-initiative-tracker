@@ -1,6 +1,49 @@
 [{
   "name": "Pete",
-  "Password": "123456"
+  "Password": "123456",
+  "encounters": [
+    {
+      "name": "Spider Room",
+      "encounter": [
+        {
+          "name": "Spider1",
+          "roll": 18,
+          "color": "#000000"
+        },
+        {
+          "name": "Spider2",
+          "roll": 14,
+          "color": "#000000"
+        },
+        {
+          "name": "Water Spout",
+          "hidden": true,
+          "color": "#000000"
+        }
+      ]
+    },
+    {
+      "name": "Bat Cave",
+      "encounter": [
+        {
+          "name": "Bat1",
+          "roll": 18,
+          "color": "#000000"
+        },
+        {
+          "name": "Bat2",
+          "roll": 14,
+          "color": "#000000"
+        },
+        {
+          "name": "Batman Busts in",
+          "roll": 20,
+          "hidden": true,
+          "color": "#000000"
+        }
+      ]
+    }
+  ]
 },
 {
   "name": "John",

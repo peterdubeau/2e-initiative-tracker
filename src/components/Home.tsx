@@ -45,8 +45,8 @@ export default function Home() {
               sx={{
                 textAlign: 'center',
                 mb: 4,
-              }}
-            >
+      }}
+    >
               <Typography
                 variant="h3"
                 component="h1"
@@ -68,16 +68,16 @@ export default function Home() {
                 sx={{ mb: 4 }}
               >
                 Initiative Tracker
-              </Typography>
+      </Typography>
             </Box>
 
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              <Button
-                variant="contained"
-                size="large"
-                fullWidth
+      <Button
+        variant="contained"
+        size="large"
+        fullWidth
                 startIcon={<PlayArrowIcon />}
-                onClick={() => navigate('/create')}
+        onClick={() => navigate('/create')}
                 sx={{
                   py: 1.5,
                   fontSize: '1.1rem',
@@ -85,15 +85,15 @@ export default function Home() {
                   textTransform: 'none',
                   fontWeight: 600,
                 }}
-              >
-                Create Game
-              </Button>
-              <Button
-                variant="outlined"
-                size="large"
-                fullWidth
+      >
+        Create Game
+      </Button>
+      <Button
+        variant="outlined"
+        size="large"
+        fullWidth
                 startIcon={<GroupAddIcon />}
-                onClick={() => navigate('/join')}
+        onClick={() => navigate('/join')}
                 sx={{
                   py: 1.5,
                   fontSize: '1.1rem',
@@ -105,9 +105,9 @@ export default function Home() {
                     borderWidth: 2,
                   },
                 }}
-              >
-                Join Game
-              </Button>
+      >
+        Join Game
+      </Button>
             </Box>
           </CardContent>
         </Card>

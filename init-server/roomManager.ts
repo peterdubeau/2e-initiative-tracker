@@ -134,6 +134,39 @@ export class RoomManager {
     return playerIds;
   }
 
+  clearPlayersOnly(gmName: string): string[] {
+    const room = this.rooms[gmName];
+    if (!room) return [];
+
+    // Get IDs of all non-monster entries (players) before removing them
+    const playerIds = room.entries
+      .filter((e) => !e.isMonster)
+      .map((e) => e.id);
+
+    // Remove only players, keep monsters
+    room.entries = room.entries.filter((e) => e.isMonster);
+
+    // Reset turn index if it's out of bounds
+    if (room.currentTurnIndex >= room.entries.length) {
+      room.currentTurnIndex = 0;
+    }
+
+    return playerIds;
+  }
+
+  clearMonstersOnly(gmName: string): void {
+    const room = this.rooms[gmName];
+    if (!room) return;
+
+    // Remove only monsters, keep players
+    room.entries = room.entries.filter((e) => !e.isMonster);
+
+    // Reset turn index if it's out of bounds
+    if (room.currentTurnIndex >= room.entries.length) {
+      room.currentTurnIndex = 0;
+    }
+  }
+
   getEntryById(gmName: string, id: string): Entry | undefined {
     const room = this.rooms[gmName];
     if (!room) return undefined;
