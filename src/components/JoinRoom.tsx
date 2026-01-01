@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { Box, TextField, Button, Typography, Alert, Card, CardContent, Container, Paper, CircularProgress } from "@mui/material";
 import PersonIcon from "@mui/icons-material/Person";
 import { useNavigate } from "react-router-dom";
+import ThemeToggle from "./ThemeToggle";
 import { useAppDispatch } from "../store/store";
 import { setRoom } from "../store/roomSlice";
 import { connect, getSocket } from "../services/socket";
@@ -17,16 +18,27 @@ export default function JoinRoom() {
   const [name, setName] = useState("");
   const [initiative, setInitiative] = useState<string>("");
   const [color, setColor] = useState("#2196f3");
+  const [textColor, setTextColor] = useState("#ffffff");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
 
-  // Load saved player name from localStorage on mount
+  // Load saved player name from localStorage and colors from sessionStorage on mount
   useEffect(() => {
     const savedName = localStorage.getItem("playerName");
     if (savedName) {
       setName(savedName);
+    }
+    
+    // Load saved colors from sessionStorage
+    const savedColor = sessionStorage.getItem("color");
+    const savedTextColor = sessionStorage.getItem("textColor");
+    if (savedColor) {
+      setColor(savedColor);
+    }
+    if (savedTextColor) {
+      setTextColor(savedTextColor);
     }
   }, []);
 
@@ -116,6 +128,7 @@ export default function JoinRoom() {
     
     // Assign random color if still using default
     const finalColor = color === "#2196f3" ? generateRandomColor() : color;
+    const finalTextColor = textColor || "#ffffff";
     
     dispatch(setRoom({ gmName: selectedGmName, isGM: false }));
     const socket = getSocket()!;
@@ -124,11 +137,13 @@ export default function JoinRoom() {
       name: name.trim(),
       roll: initiativeNumber,
       color: finalColor,
+      textColor: finalTextColor,
     });
-    const pi = { name: name.trim(), roll: initiativeNumber, color: finalColor };
-    Object.entries(pi).forEach(([key, value]) => {
-      sessionStorage.setItem(key, value as string);
-    });
+    // Save player info to sessionStorage
+    sessionStorage.setItem("name", name.trim());
+    sessionStorage.setItem("roll", initiativeNumber.toString());
+    sessionStorage.setItem("color", finalColor);
+    sessionStorage.setItem("textColor", finalTextColor);
     navigate(`/room/${selectedGmName}`);
   }
 
@@ -143,8 +158,19 @@ export default function JoinRoom() {
             alignItems: 'center',
             justifyContent: 'center',
             py: 4,
+            position: 'relative',
           }}
         >
+          <Box
+            sx={{
+              position: 'absolute',
+              top: 16,
+              right: 16,
+              zIndex: 1000,
+            }}
+          >
+            <ThemeToggle />
+          </Box>
           <Card
             elevation={8}
             sx={{
@@ -221,8 +247,19 @@ export default function JoinRoom() {
           alignItems: 'center',
           justifyContent: 'center',
           py: 4,
+          position: 'relative',
         }}
       >
+        <Box
+          sx={{
+            position: 'absolute',
+            top: 16,
+            right: 16,
+            zIndex: 1000,
+          }}
+        >
+          <ThemeToggle />
+        </Box>
         <Card
           elevation={8}
           sx={{
@@ -271,47 +308,111 @@ export default function JoinRoom() {
             <Box
               sx={{
                 display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
+                flexDirection: "column",
+                gap: 2,
                 mb: 3,
                 p: 2,
                 backgroundColor: 'background.default',
                 borderRadius: 2,
               }}
             >
-              <Typography variant="body1" sx={{ fontWeight: 500 }}>
-                Character Color:
-              </Typography>
               <Box
                 sx={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 1,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
                 }}
               >
+                <Typography variant="body1" sx={{ fontWeight: 500 }}>
+                  Background Color:
+                </Typography>
                 <Box
                   sx={{
-                    width: 40,
-                    height: 40,
-                    borderRadius: 2,
-                    backgroundColor: color,
-                    border: '2px solid',
-                    borderColor: 'divider',
-                    boxShadow: 2,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 1,
                   }}
-                />
-                <input
-                  type="color"
-                  value={color}
-                  onChange={(e) => setColor(e.target.value)}
-                  style={{
-                    width: 50,
-                    height: 40,
-                    border: 'none',
-                    borderRadius: 8,
-                    cursor: 'pointer',
+                >
+                  <Box
+                    sx={{
+                      width: 40,
+                      height: 40,
+                      borderRadius: 2,
+                      backgroundColor: color,
+                      border: '2px solid',
+                      borderColor: 'divider',
+                      boxShadow: 2,
+                    }}
+                  />
+                  <input
+                    type="color"
+                    value={color}
+                    onChange={(e) => setColor(e.target.value)}
+                    style={{
+                      width: 50,
+                      height: 40,
+                      border: 'none',
+                      borderRadius: 8,
+                      cursor: 'pointer',
+                    }}
+                  />
+                </Box>
+              </Box>
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                }}
+              >
+                <Typography variant="body1" sx={{ fontWeight: 500 }}>
+                  Text Color:
+                </Typography>
+                <Box
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 1,
                   }}
-                />
+                >
+                  <Box
+                    sx={{
+                      width: 40,
+                      height: 40,
+                      borderRadius: 2,
+                      backgroundColor: textColor,
+                      border: '2px solid',
+                      borderColor: 'divider',
+                      boxShadow: 2,
+                    }}
+                  />
+                  <input
+                    type="color"
+                    value={textColor}
+                    onChange={(e) => setTextColor(e.target.value)}
+                    style={{
+                      width: 50,
+                      height: 40,
+                      border: 'none',
+                      borderRadius: 8,
+                      cursor: 'pointer',
+                    }}
+                  />
+                </Box>
+              </Box>
+              <Box
+                sx={{
+                  p: 2,
+                  borderRadius: 2,
+                  backgroundColor: color,
+                  color: textColor,
+                  textAlign: 'center',
+                  mt: 1,
+                }}
+              >
+                <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                  Preview: This is how your entry will look
+                </Typography>
               </Box>
             </Box>
 

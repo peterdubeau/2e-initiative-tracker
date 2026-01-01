@@ -20,6 +20,11 @@ import {
   Accordion,
   AccordionSummary,
   AccordionDetails,
+  Menu,
+  MenuItem,
+  ListItemIcon,
+  ListItemText,
+  Divider,
 } from "@mui/material";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import AddIcon from "@mui/icons-material/Add";
@@ -32,6 +37,11 @@ import LinkIcon from "@mui/icons-material/Link";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import SortIcon from "@mui/icons-material/Sort";
 import ClearAllIcon from "@mui/icons-material/ClearAll";
+import PaletteIcon from "@mui/icons-material/Palette";
+import MoreVertIcon from "@mui/icons-material/MoreVert";
+import Brightness4Icon from "@mui/icons-material/Brightness4";
+import Brightness7Icon from "@mui/icons-material/Brightness7";
+import { useThemeMode } from "../contexts/ThemeContext";
 
 import {
   DndContext,
@@ -59,9 +69,11 @@ const SortableItem: React.FC<{
   isCurrent: boolean;
   hidden: boolean;
   color: string;
+  textColor?: string;
   name: string;
   roll: number;
-}> = ({ id, isCurrent, hidden, color, name, roll }) => {
+  onColorChange?: (id: string, color: string, textColor: string) => void;
+}> = ({ id, isCurrent, hidden, color, textColor, name, roll, onColorChange }) => {
   const { attributes, listeners, setNodeRef, transform, transition } =
     useSortable({ id });
   const style = {
@@ -77,6 +89,12 @@ const SortableItem: React.FC<{
   const handleToggle = (e: React.MouseEvent) => {
     e.stopPropagation();
     socket.emit("toggle-hidden", id);
+  };
+  const handleColorClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (onColorChange) {
+      onColorChange(id, color, textColor || '#ffffff');
+    }
   };
 
   return (
@@ -109,7 +127,7 @@ const SortableItem: React.FC<{
           alignItems: 'center',
           p: 2,
           backgroundColor: hidden ? 'grey.300' : color,
-          color: hidden ? 'text.secondary' : 'white',
+          color: hidden ? 'text.secondary' : (textColor || 'white'),
           position: 'relative',
         }}
       >
@@ -117,7 +135,7 @@ const SortableItem: React.FC<{
           sx={{
             mr: 1,
             opacity: 0.7,
-            color: hidden ? 'text.secondary' : 'white',
+            color: hidden ? 'text.secondary' : (textColor || 'white'),
           }}
         />
         <Box sx={{ flexGrow: 1 }}>
@@ -130,7 +148,7 @@ const SortableItem: React.FC<{
             sx={{
               mt: 0.5,
               backgroundColor: 'rgba(255, 255, 255, 0.3)',
-              color: 'white',
+              color: hidden ? 'text.secondary' : (textColor || 'white'),
               fontWeight: 600,
             }}
           />
@@ -150,10 +168,24 @@ const SortableItem: React.FC<{
         )}
         <Box sx={{ display: 'flex', gap: 0.5 }}>
           <IconButton
+            onClick={handleColorClick}
+            size="small"
+            sx={{
+              color: hidden ? 'text.secondary' : (textColor || 'white'),
+              backgroundColor: 'rgba(255, 255, 255, 0.2)',
+              '&:hover': {
+                backgroundColor: 'rgba(255, 255, 255, 0.3)',
+              },
+            }}
+            title="Change colors"
+          >
+            <PaletteIcon fontSize="small" />
+          </IconButton>
+          <IconButton
             onClick={handleToggle}
             size="small"
             sx={{
-              color: hidden ? 'text.secondary' : 'white',
+              color: hidden ? 'text.secondary' : (textColor || 'white'),
               backgroundColor: 'rgba(255, 255, 255, 0.2)',
               '&:hover': {
                 backgroundColor: 'rgba(255, 255, 255, 0.3)',
@@ -170,7 +202,7 @@ const SortableItem: React.FC<{
             onClick={handleRemove}
             size="small"
             sx={{
-              color: hidden ? 'text.secondary' : 'white',
+              color: hidden ? 'text.secondary' : (textColor || 'white'),
               backgroundColor: 'rgba(255, 255, 255, 0.2)',
               '&:hover': {
                 backgroundColor: 'rgba(255, 0, 0, 0.3)',
@@ -203,6 +235,14 @@ const GMView: React.FC = () => {
   const [encountersExpanded, setEncountersExpanded] = useState(false);
   const [encounterModalOpen, setEncounterModalOpen] = useState(false);
   const [selectedEncounter, setSelectedEncounter] = useState<string | null>(null);
+  const [colorDialogOpen, setColorDialogOpen] = useState(false);
+  const [editingEntryId, setEditingEntryId] = useState<string | null>(null);
+  const [editingColor, setEditingColor] = useState("#2196f3");
+  const [editingTextColor, setEditingTextColor] = useState("#ffffff");
+  const [addMonsterExpanded, setAddMonsterExpanded] = useState(false);
+  const [menuAnchorEl, setMenuAnchorEl] = useState<null | HTMLElement>(null);
+  const { mode, toggleTheme } = useThemeMode();
+  const menuOpen = Boolean(menuAnchorEl);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -254,9 +294,11 @@ const GMView: React.FC = () => {
     }
   };
 
-  const handleCopyLink = async (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
+  const handleCopyLink = async (e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
     const joinUrl = `${window.location.origin}/join`;
     try {
       await navigator.clipboard.writeText(joinUrl);
@@ -313,6 +355,31 @@ const GMView: React.FC = () => {
 
   const handleLoadEncounter = (clearRoom: boolean, clearPlayers: boolean, clearMonsters?: boolean) => {
     if (!selectedEncounter) return;
+    
+    // Build the alert message explaining what will happen
+    let message = `You are about to load the encounter: "${selectedEncounter}"\n\n`;
+    
+    if (clearRoom) {
+      message += "⚠️ This will CLEAR THE ENTIRE ROOM (all items, players, and monsters) before loading the encounter.\n\n";
+    }
+    if (clearPlayers) {
+      message += "⚠️ This will CLEAR ALL PLAYERS from the room before loading the encounter.\n\n";
+    }
+    if (clearMonsters) {
+      message += "⚠️ This will CLEAR ALL MONSTERS from the room before loading the encounter.\n\n";
+    }
+    
+    if (!clearRoom && !clearPlayers && !clearMonsters) {
+      message += "This will load the encounter without clearing anything. Existing items, players, and monsters will remain.\n\n";
+    }
+    
+    message += "Do you want to proceed?";
+    
+    // Show confirmation dialog
+    if (!window.confirm(message)) {
+      return; // User cancelled
+    }
+    
     const socket = getSocket();
     socket.emit("load-encounter", {
       encounterName: selectedEncounter,
@@ -327,6 +394,46 @@ const GMView: React.FC = () => {
   const handleCancelEncounter = () => {
     setEncounterModalOpen(false);
     setSelectedEncounter(null);
+  };
+
+  const handleColorChangeClick = (id: string, currentColor: string, currentTextColor: string) => {
+    setEditingEntryId(id);
+    setEditingColor(currentColor);
+    setEditingTextColor(currentTextColor);
+    setColorDialogOpen(true);
+  };
+
+  const handleColorUpdate = () => {
+    if (!editingEntryId) return;
+    const entry = entries.find(e => e.id === editingEntryId);
+    if (!entry) return;
+    
+    const socket = getSocket();
+    socket.emit("update-entry", {
+      ...entry,
+      color: editingColor,
+      textColor: editingTextColor,
+    });
+    setColorDialogOpen(false);
+    setEditingEntryId(null);
+  };
+
+  const handleCancelColorDialog = () => {
+    setColorDialogOpen(false);
+    setEditingEntryId(null);
+  };
+
+  const handleMenuClick = (event: React.MouseEvent<HTMLElement>) => {
+    setMenuAnchorEl(event.currentTarget);
+  };
+
+  const handleMenuClose = () => {
+    setMenuAnchorEl(null);
+  };
+
+  const handleCopyLinkFromMenu = async () => {
+    handleMenuClose();
+    await handleCopyLink();
   };
 
   return (
@@ -356,25 +463,45 @@ const GMView: React.FC = () => {
                 {gmName}
               </Typography>
             </Box>
-            <Button
-              variant="contained"
-              startIcon={copied ? <CheckCircleIcon /> : <LinkIcon />}
-              onClick={handleCopyLink}
-              onMouseDown={(e) => e.preventDefault()}
+            <IconButton
+              onClick={handleMenuClick}
               sx={{
                 backgroundColor: 'white',
                 color: 'primary.main',
-                userSelect: 'none',
                 '&:hover': {
                   backgroundColor: 'rgba(255, 255, 255, 0.9)',
                 },
-                fontWeight: 600,
-                textTransform: 'none',
-                borderRadius: 2,
               }}
             >
-              {copied ? 'Link Copied!' : 'Copy Join Link'}
-            </Button>
+              <MoreVertIcon />
+            </IconButton>
+            <Menu
+              anchorEl={menuAnchorEl}
+              open={menuOpen}
+              onClose={handleMenuClose}
+              anchorOrigin={{
+                vertical: 'bottom',
+                horizontal: 'right',
+              }}
+              transformOrigin={{
+                vertical: 'top',
+                horizontal: 'right',
+              }}
+            >
+              <MenuItem onClick={toggleTheme}>
+                <ListItemIcon>
+                  {mode === 'light' ? <Brightness4Icon fontSize="small" /> : <Brightness7Icon fontSize="small" />}
+                </ListItemIcon>
+                <ListItemText>{mode === 'light' ? 'Dark Mode' : 'Light Mode'}</ListItemText>
+              </MenuItem>
+              <Divider />
+              <MenuItem onClick={handleCopyLinkFromMenu}>
+                <ListItemIcon>
+                  {copied ? <CheckCircleIcon fontSize="small" /> : <LinkIcon fontSize="small" />}
+                </ListItemIcon>
+                <ListItemText>{copied ? 'Link Copied!' : 'Copy Room Link'}</ListItemText>
+              </MenuItem>
+            </Menu>
           </Box>
         </Paper>
 
@@ -430,91 +557,101 @@ const GMView: React.FC = () => {
 
         <Card elevation={4} sx={{ mb: 4, borderRadius: 3 }}>
           <CardContent sx={{ p: 3 }}>
-            <Typography variant="h6" gutterBottom sx={{ mb: 3, fontWeight: 600 }}>
-              Add Monster
-            </Typography>
-            <Box display="flex" flexDirection="column" gap={2}>
-              <TextField
-                label="Monster Name"
-                value={monsterName}
-                onChange={(e) => setMonsterName(e.target.value)}
-                fullWidth
-                sx={{ mb: 1 }}
-              />
-              <TextField
-                label="Initiative Roll"
-                type="number"
-                value={monsterRoll}
-                onChange={(e) => setMonsterRoll(Number(e.target.value))}
-                fullWidth
-                inputProps={{ min: 0 }}
-                sx={{ mb: 1 }}
-              />
-              <Box
-                display="flex"
-                alignItems="center"
-                justifyContent="space-between"
-                sx={{
-                  p: 2,
-                  backgroundColor: 'background.default',
-                  borderRadius: 2,
-                }}
-              >
-                <Typography variant="body1" sx={{ fontWeight: 500 }}>
-                  Color:
+            <Accordion 
+              expanded={addMonsterExpanded} 
+              onChange={(_, isExpanded) => setAddMonsterExpanded(isExpanded)}
+              sx={{ boxShadow: 'none' }}
+            >
+              <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                  Add Monster
                 </Typography>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              </AccordionSummary>
+              <AccordionDetails>
+                <Box display="flex" flexDirection="column" gap={2}>
+                  <TextField
+                    label="Monster Name"
+                    value={monsterName}
+                    onChange={(e) => setMonsterName(e.target.value)}
+                    fullWidth
+                    sx={{ mb: 1 }}
+                  />
+                  <TextField
+                    label="Initiative Roll"
+                    type="number"
+                    value={monsterRoll}
+                    onChange={(e) => setMonsterRoll(Number(e.target.value))}
+                    fullWidth
+                    inputProps={{ min: 0 }}
+                    sx={{ mb: 1 }}
+                  />
                   <Box
+                    display="flex"
+                    alignItems="center"
+                    justifyContent="space-between"
                     sx={{
-                      width: 40,
-                      height: 40,
+                      p: 2,
+                      backgroundColor: 'background.default',
                       borderRadius: 2,
-                      backgroundColor: monsterColor,
-                      border: '2px solid',
-                      borderColor: 'divider',
-                      boxShadow: 2,
                     }}
+                  >
+                    <Typography variant="body1" sx={{ fontWeight: 500 }}>
+                      Color:
+                    </Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Box
+                        sx={{
+                          width: 40,
+                          height: 40,
+                          borderRadius: 2,
+                          backgroundColor: monsterColor,
+                          border: '2px solid',
+                          borderColor: 'divider',
+                          boxShadow: 2,
+                        }}
+                      />
+                      <input
+                        type="color"
+                        value={monsterColor}
+                        onChange={(e) => setMonsterColor(e.target.value)}
+                        style={{
+                          width: 50,
+                          height: 40,
+                          border: 'none',
+                          borderRadius: 8,
+                          cursor: 'pointer',
+                        }}
+                      />
+                    </Box>
+                  </Box>
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={monsterHidden}
+                        onChange={(e) => setMonsterHidden(e.target.checked)}
+                      />
+                    }
+                    label="Hidden from players"
                   />
-                  <input
-                    type="color"
-                    value={monsterColor}
-                    onChange={(e) => setMonsterColor(e.target.value)}
-                    style={{
-                      width: 50,
-                      height: 40,
-                      border: 'none',
-                      borderRadius: 8,
-                      cursor: 'pointer',
+                  <Button
+                    variant="contained"
+                    startIcon={<AddIcon />}
+                    onClick={handleAddMonster}
+                    disabled={!monsterName}
+                    fullWidth
+                    size="large"
+                    sx={{
+                      py: 1.5,
+                      borderRadius: 3,
+                      textTransform: 'none',
+                      fontWeight: 600,
                     }}
-                  />
+                  >
+                    Add Monster
+                  </Button>
                 </Box>
-              </Box>
-              <FormControlLabel
-                control={
-                  <Checkbox
-                    checked={monsterHidden}
-                    onChange={(e) => setMonsterHidden(e.target.checked)}
-                  />
-                }
-                label="Hidden from players"
-              />
-              <Button
-                variant="contained"
-                startIcon={<AddIcon />}
-                onClick={handleAddMonster}
-                disabled={!monsterName}
-                fullWidth
-                size="large"
-                sx={{
-                  py: 1.5,
-                  borderRadius: 3,
-                  textTransform: 'none',
-                  fontWeight: 600,
-                }}
-              >
-                Add Monster
-              </Button>
-            </Box>
+              </AccordionDetails>
+            </Accordion>
           </CardContent>
         </Card>
 
@@ -575,8 +712,10 @@ const GMView: React.FC = () => {
                       isCurrent={idx === current}
                       hidden={e.hidden}
                       color={e.color}
+                      textColor={e.textColor}
                       name={e.name}
                       roll={e.roll}
+                      onColorChange={handleColorChangeClick}
                     />
                   ))}
                 </SortableContext>
@@ -683,13 +822,123 @@ const GMView: React.FC = () => {
                 onClick={() => handleLoadEncounter(false, false, true)}
                 sx={{ textTransform: 'none', py: 1.5 }}
               >
-                Clear Monsters and Load
+                Clear Monsters Before Loading
               </Button>
             </Box>
           </DialogContent>
           <DialogActions>
             <Button onClick={handleCancelEncounter} color="inherit">
               Cancel
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        <Dialog
+          open={colorDialogOpen}
+          onClose={handleCancelColorDialog}
+          aria-labelledby="color-dialog-title"
+        >
+          <DialogTitle id="color-dialog-title">
+            Change Colors
+          </DialogTitle>
+          <DialogContent>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, pt: 2 }}>
+              <Box>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                  Background Color:
+                </Typography>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                  <Box
+                    sx={{
+                      width: 60,
+                      height: 60,
+                      borderRadius: 1,
+                      backgroundColor: editingColor,
+                      border: '2px solid',
+                      borderColor: 'divider',
+                    }}
+                  />
+                  <TextField
+                    type="color"
+                    value={editingColor}
+                    onChange={(e) => setEditingColor(e.target.value)}
+                    sx={{
+                      width: 100,
+                      '& input': {
+                        height: 60,
+                        cursor: 'pointer',
+                      },
+                    }}
+                  />
+                  <TextField
+                    label="Hex"
+                    value={editingColor}
+                    onChange={(e) => setEditingColor(e.target.value)}
+                    size="small"
+                    sx={{ flexGrow: 1 }}
+                  />
+                </Box>
+              </Box>
+              <Box>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                  Text Color:
+                </Typography>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                  <Box
+                    sx={{
+                      width: 60,
+                      height: 60,
+                      borderRadius: 1,
+                      backgroundColor: editingTextColor,
+                      border: '2px solid',
+                      borderColor: 'divider',
+                    }}
+                  />
+                  <TextField
+                    type="color"
+                    value={editingTextColor}
+                    onChange={(e) => setEditingTextColor(e.target.value)}
+                    sx={{
+                      width: 100,
+                      '& input': {
+                        height: 60,
+                        cursor: 'pointer',
+                      },
+                    }}
+                  />
+                  <TextField
+                    label="Hex"
+                    value={editingTextColor}
+                    onChange={(e) => setEditingTextColor(e.target.value)}
+                    size="small"
+                    sx={{ flexGrow: 1 }}
+                  />
+                </Box>
+              </Box>
+              <Box
+                sx={{
+                  p: 2,
+                  borderRadius: 1,
+                  backgroundColor: editingColor,
+                  color: editingTextColor,
+                  textAlign: 'center',
+                }}
+              >
+                <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                  Preview
+                </Typography>
+                <Typography variant="body2">
+                  This is how your entry will look
+                </Typography>
+              </Box>
+            </Box>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={handleCancelColorDialog} color="inherit">
+              Cancel
+            </Button>
+            <Button onClick={handleColorUpdate} variant="contained" color="primary" autoFocus>
+              Update Colors
             </Button>
           </DialogActions>
         </Dialog>

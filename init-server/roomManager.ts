@@ -5,6 +5,7 @@ export type Entry = {
   name: string;
   roll: number;
   color: string;
+  textColor?: string;
   isMonster: boolean;
   hidden: boolean;
 };

@@ -3,6 +3,7 @@ import { Box, Button, Typography, Card, CardContent, Container } from '@mui/mate
 import { useNavigate } from 'react-router-dom'
 import PlayArrowIcon from '@mui/icons-material/PlayArrow'
 import GroupAddIcon from '@mui/icons-material/GroupAdd'
+import ThemeToggle from './ThemeToggle'
 
 export default function Home() {
   const navigate = useNavigate()
@@ -19,6 +20,7 @@ export default function Home() {
         animation: 'gradientShift 15s ease infinite',
         px: 2,
         py: 4,
+        position: 'relative',
         '@keyframes gradientShift': {
           '0%': {
             backgroundPosition: '0% 50%',
@@ -32,6 +34,16 @@ export default function Home() {
         },
       }}
     >
+      <Box
+        sx={{
+          position: 'absolute',
+          top: 16,
+          right: 16,
+          zIndex: 1000,
+        }}
+      >
+        <ThemeToggle />
+      </Box>
       <Container maxWidth="sm">
         <Card
           elevation={8}

@@ -75,14 +75,18 @@ const Room: React.FC = () => {
         const playerName = sessionStorage.getItem("name");
         const playerRoll = sessionStorage.getItem("roll");
         const playerColor = sessionStorage.getItem("color");
+        const playerTextColor = sessionStorage.getItem("textColor");
         
         if (playerName && playerRoll && playerColor) {
           // We have player info, re-emit join-room to ensure tracking
-          const pi = {
+          const pi: any = {
             name: playerName,
             roll: parseInt(playerRoll, 10),
             color: playerColor,
           };
+          if (playerTextColor) {
+            pi.textColor = playerTextColor;
+          }
           
           if (socket.connected) {
             socket.emit("join-room", pi);

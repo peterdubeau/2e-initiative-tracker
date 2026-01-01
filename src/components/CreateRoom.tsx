@@ -13,6 +13,7 @@ import {
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import CreateIcon from "@mui/icons-material/Create";
 import { useNavigate } from "react-router-dom";
+import ThemeToggle from "./ThemeToggle";
 import { useDispatch } from "react-redux";
 import type { AppDispatch } from "../store/store";
 import { setRoom } from "../store/roomSlice";
@@ -67,8 +68,19 @@ const CreateRoom: React.FC = () => {
           alignItems: 'center',
           justifyContent: 'center',
           py: 4,
+          position: 'relative',
         }}
       >
+        <Box
+          sx={{
+            position: 'absolute',
+            top: 16,
+            right: 16,
+            zIndex: 1000,
+          }}
+        >
+          <ThemeToggle />
+        </Box>
         <Card
           elevation={8}
           sx={{

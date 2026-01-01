@@ -1,10 +1,33 @@
-import { useState } from "react";
-import { Box, Typography, Paper, Chip, Container, Button, IconButton } from "@mui/material";
+import { useState, useEffect } from "react";
+import { 
+  Box, 
+  Typography, 
+  Paper, 
+  Chip, 
+  Container, 
+  Button, 
+  IconButton,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
+  Menu,
+  MenuItem,
+  ListItemIcon,
+  ListItemText,
+  Divider,
+} from "@mui/material";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
-import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import LinkIcon from "@mui/icons-material/Link";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
+import PaletteIcon from "@mui/icons-material/Palette";
+import MoreVertIcon from "@mui/icons-material/MoreVert";
+import Brightness4Icon from "@mui/icons-material/Brightness4";
+import Brightness7Icon from "@mui/icons-material/Brightness7";
 import { useAppSelector } from "../store/store";
+import { getSocket } from "../services/socket";
+import { useThemeMode } from "../contexts/ThemeContext";
 
 export default function PlayerView() {
   const entries = useAppSelector((state) => state.room.entries);
@@ -13,6 +36,12 @@ export default function PlayerView() {
     (state) => state.room.currentTurnIndex
   );
   const [copied, setCopied] = useState(false);
+  const [colorDialogOpen, setColorDialogOpen] = useState(false);
+  const [editingColor, setEditingColor] = useState("#2196f3");
+  const [editingTextColor, setEditingTextColor] = useState("#ffffff");
+  const [menuAnchorEl, setMenuAnchorEl] = useState<null | HTMLElement>(null);
+  const { mode, toggleTheme } = useThemeMode();
+  const menuOpen = Boolean(menuAnchorEl);
 
   // 1. Determine which entry is "current" by id
   const currentEntryId = entries[currentTurnIndex]?.id;
@@ -20,9 +49,91 @@ export default function PlayerView() {
   // 2. Filter out hidden entries for display
   const visibleEntries = entries.filter((entry) => !entry.hidden);
 
-  const handleCopyLink = async (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
+  // Find the player's own entry by matching name from sessionStorage
+  const playerName = sessionStorage.getItem("name");
+  const playerEntry = playerName ? entries.find(e => !e.isMonster && e.name === playerName) : null;
+
+  // Initialize colors from sessionStorage or player entry
+  useEffect(() => {
+    if (playerEntry) {
+      const savedColor = sessionStorage.getItem("color");
+      const savedTextColor = sessionStorage.getItem("textColor");
+      
+      // If entry doesn't have textColor but we have it in sessionStorage, update it
+      if (!playerEntry.textColor && savedTextColor) {
+        const socket = getSocket();
+        socket.emit("update-entry", {
+          ...playerEntry,
+          textColor: savedTextColor,
+        });
+      }
+      
+      // If entry color doesn't match sessionStorage, update it
+      if (savedColor && playerEntry.color !== savedColor) {
+        const socket = getSocket();
+        socket.emit("update-entry", {
+          ...playerEntry,
+          color: savedColor,
+          textColor: savedTextColor || playerEntry.textColor || '#ffffff',
+        });
+      }
+    }
+  }, [playerEntry]);
+
+  const handleColorChangeClick = () => {
+    if (playerEntry) {
+      // Load from entry first, fallback to sessionStorage, then default
+      const savedColor = sessionStorage.getItem("color");
+      const savedTextColor = sessionStorage.getItem("textColor");
+      setEditingColor(playerEntry.color || savedColor || '#2196f3');
+      setEditingTextColor(playerEntry.textColor || savedTextColor || '#ffffff');
+      setColorDialogOpen(true);
+    }
+  };
+
+  const handleColorUpdate = () => {
+    if (!playerEntry) return;
+    
+    // Save colors to sessionStorage
+    sessionStorage.setItem("color", editingColor);
+    sessionStorage.setItem("textColor", editingTextColor);
+    
+    const socket = getSocket();
+    socket.emit("update-entry", {
+      ...playerEntry,
+      color: editingColor,
+      textColor: editingTextColor,
+    });
+    setColorDialogOpen(false);
+  };
+
+  const handleCancelColorDialog = () => {
+    setColorDialogOpen(false);
+  };
+
+  const handleMenuClick = (event: React.MouseEvent<HTMLElement>) => {
+    setMenuAnchorEl(event.currentTarget);
+  };
+
+  const handleMenuClose = () => {
+    setMenuAnchorEl(null);
+  };
+
+  const handleColorChangeFromMenu = () => {
+    handleMenuClose();
+    handleColorChangeClick();
+  };
+
+  const handleCopyLinkFromMenu = async () => {
+    handleMenuClose();
+    await handleCopyLink();
+  };
+
+  const handleCopyLink = async (e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
     const joinUrl = `${window.location.origin}/join`;
     try {
       await navigator.clipboard.writeText(joinUrl);
@@ -71,25 +182,56 @@ export default function PlayerView() {
                 {gmName}
               </Typography>
             </Box>
-            <Button
-              variant="contained"
-              startIcon={copied ? <CheckCircleIcon /> : <LinkIcon />}
-              onClick={handleCopyLink}
-              onMouseDown={(e) => e.preventDefault()}
+            <IconButton
+              onClick={handleMenuClick}
               sx={{
                 backgroundColor: 'white',
                 color: 'primary.main',
-                userSelect: 'none',
                 '&:hover': {
                   backgroundColor: 'rgba(255, 255, 255, 0.9)',
                 },
-                fontWeight: 600,
-                textTransform: 'none',
-                borderRadius: 2,
               }}
             >
-              {copied ? 'Link Copied!' : 'Copy Join Link'}
-            </Button>
+              <MoreVertIcon />
+            </IconButton>
+            <Menu
+              anchorEl={menuAnchorEl}
+              open={menuOpen}
+              onClose={handleMenuClose}
+              anchorOrigin={{
+                vertical: 'bottom',
+                horizontal: 'right',
+              }}
+              transformOrigin={{
+                vertical: 'top',
+                horizontal: 'right',
+              }}
+            >
+              <MenuItem onClick={toggleTheme}>
+                <ListItemIcon>
+                  {mode === 'light' ? <Brightness4Icon fontSize="small" /> : <Brightness7Icon fontSize="small" />}
+                </ListItemIcon>
+                <ListItemText>{mode === 'light' ? 'Dark Mode' : 'Light Mode'}</ListItemText>
+              </MenuItem>
+              {playerEntry && (
+                <>
+                  <Divider />
+                  <MenuItem onClick={handleColorChangeFromMenu}>
+                    <ListItemIcon>
+                      <PaletteIcon fontSize="small" />
+                    </ListItemIcon>
+                    <ListItemText>Change Colors</ListItemText>
+                  </MenuItem>
+                </>
+              )}
+              <Divider />
+              <MenuItem onClick={handleCopyLinkFromMenu}>
+                <ListItemIcon>
+                  {copied ? <CheckCircleIcon fontSize="small" /> : <LinkIcon fontSize="small" />}
+                </ListItemIcon>
+                <ListItemText>{copied ? 'Link Copied!' : 'Copy Room Link'}</ListItemText>
+              </MenuItem>
+            </Menu>
           </Box>
         </Paper>
 
@@ -133,7 +275,7 @@ export default function PlayerView() {
                       alignItems: 'center',
                       p: 2.5,
                       backgroundColor: entry.color,
-                      color: 'white',
+                      color: entry.textColor || 'white',
                       position: 'relative',
                     }}
                   >
@@ -154,16 +296,16 @@ export default function PlayerView() {
                       <Typography variant="h6" sx={{ fontWeight: 600 }}>
                         {entry.name}
                       </Typography>
-                      <Chip
-                        label={`Initiative: ${entry.roll}`}
-                        size="small"
-                        sx={{
-                          mt: 0.5,
-                          backgroundColor: 'rgba(255, 255, 255, 0.3)',
-                          color: 'white',
-                          fontWeight: 600,
-                        }}
-                      />
+                    <Chip
+                      label={`Initiative: ${entry.roll}`}
+                      size="small"
+                      sx={{
+                        mt: 0.5,
+                        backgroundColor: 'rgba(255, 255, 255, 0.3)',
+                        color: entry.textColor || 'white',
+                        fontWeight: 600,
+                      }}
+                    />
                     </Box>
                     <Typography
                       variant="h5"
@@ -182,6 +324,116 @@ export default function PlayerView() {
             })}
           </Box>
         )}
+
+        <Dialog
+          open={colorDialogOpen}
+          onClose={handleCancelColorDialog}
+          aria-labelledby="color-dialog-title"
+        >
+          <DialogTitle id="color-dialog-title">
+            Change Your Colors
+          </DialogTitle>
+          <DialogContent>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, pt: 2 }}>
+              <Box>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                  Background Color:
+                </Typography>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                  <Box
+                    sx={{
+                      width: 60,
+                      height: 60,
+                      borderRadius: 1,
+                      backgroundColor: editingColor,
+                      border: '2px solid',
+                      borderColor: 'divider',
+                    }}
+                  />
+                  <TextField
+                    type="color"
+                    value={editingColor}
+                    onChange={(e) => setEditingColor(e.target.value)}
+                    sx={{
+                      width: 100,
+                      '& input': {
+                        height: 60,
+                        cursor: 'pointer',
+                      },
+                    }}
+                  />
+                  <TextField
+                    label="Hex"
+                    value={editingColor}
+                    onChange={(e) => setEditingColor(e.target.value)}
+                    size="small"
+                    sx={{ flexGrow: 1 }}
+                  />
+                </Box>
+              </Box>
+              <Box>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                  Text Color:
+                </Typography>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                  <Box
+                    sx={{
+                      width: 60,
+                      height: 60,
+                      borderRadius: 1,
+                      backgroundColor: editingTextColor,
+                      border: '2px solid',
+                      borderColor: 'divider',
+                    }}
+                  />
+                  <TextField
+                    type="color"
+                    value={editingTextColor}
+                    onChange={(e) => setEditingTextColor(e.target.value)}
+                    sx={{
+                      width: 100,
+                      '& input': {
+                        height: 60,
+                        cursor: 'pointer',
+                      },
+                    }}
+                  />
+                  <TextField
+                    label="Hex"
+                    value={editingTextColor}
+                    onChange={(e) => setEditingTextColor(e.target.value)}
+                    size="small"
+                    sx={{ flexGrow: 1 }}
+                  />
+                </Box>
+              </Box>
+              <Box
+                sx={{
+                  p: 2,
+                  borderRadius: 1,
+                  backgroundColor: editingColor,
+                  color: editingTextColor,
+                  textAlign: 'center',
+                }}
+              >
+                <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                  Preview
+                </Typography>
+                <Typography variant="body2">
+                  This is how your entry will look
+                </Typography>
+              </Box>
+            </Box>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={handleCancelColorDialog} color="inherit">
+              Cancel
+            </Button>
+            <Button onClick={handleColorUpdate} variant="contained" color="primary" autoFocus>
+              Update Colors
+            </Button>
+          </DialogActions>
+        </Dialog>
       </Box>
     </Container>
   );
