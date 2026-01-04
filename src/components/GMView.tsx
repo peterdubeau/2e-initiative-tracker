@@ -226,7 +226,7 @@ const GMView: React.FC = () => {
   );
 
   const [monsterName, setMonsterName] = useState("");
-  const [monsterRoll, setMonsterRoll] = useState<number>(0);
+  const [monsterRoll, setMonsterRoll] = useState<string>("");
   const [monsterColor, setMonsterColor] = useState("#888888");
   const [monsterHidden, setMonsterHidden] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -268,15 +268,16 @@ const GMView: React.FC = () => {
   }, [gmName]);
 
   const handleAddMonster = () => {
+    const rollValue = parseInt(monsterRoll, 10) || 0;
     const socket = getSocket();
     socket.emit("add-monster", {
       name: monsterName,
-      roll: monsterRoll,
+      roll: rollValue,
       color: monsterColor,
       hidden: monsterHidden,
     });
     setMonsterName("");
-    setMonsterRoll(0);
+    setMonsterRoll("");
     setMonsterHidden(false);
   };
 
@@ -568,7 +569,7 @@ const GMView: React.FC = () => {
                     label="Initiative Roll"
                     type="number"
                     value={monsterRoll}
-                    onChange={(e) => setMonsterRoll(Number(e.target.value))}
+                    onChange={(e) => setMonsterRoll(e.target.value)}
                     fullWidth
                     inputProps={{ min: 0 }}
                     sx={{ mb: 1 }}
