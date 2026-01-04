@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Box,
   Button,
@@ -28,6 +28,50 @@ const CreateRoom: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
   const navigate = useNavigate();
 
+  // Auto-login on component mount if credentials are stored
+  useEffect(() => {
+    const storedCredentials = localStorage.getItem("gmCredentials");
+    if (storedCredentials) {
+      try {
+        const credentials = JSON.parse(storedCredentials);
+        if (credentials.gmName && credentials.password) {
+          // Attempt auto-login
+          setLoading(true);
+          setGmName(credentials.gmName);
+          
+          api.post("/login-gm", {
+            name: credentials.gmName,
+            password: credentials.password,
+          })
+            .then((resp) => {
+              if (resp.data.success) {
+                const name = resp.data.gmName as string;
+                sessionStorage.setItem("gmName", name);
+                sessionStorage.setItem("isGM", "true");
+                dispatch(setRoom({ gmName: name, isGM: true }));
+                // Navigate directly to room, skipping login UI
+                navigate(`/room/${name}`, { replace: true });
+              } else {
+                // Invalid credentials, clear them
+                localStorage.removeItem("gmCredentials");
+                setLoading(false);
+              }
+            })
+            .catch((error) => {
+              // Auto-login failed, clear invalid credentials
+              console.error('Auto-login error:', error);
+              localStorage.removeItem("gmCredentials");
+              setLoading(false);
+            });
+        }
+      } catch (error) {
+        // Invalid stored data, clear it
+        console.error('Error parsing stored credentials:', error);
+        localStorage.removeItem("gmCredentials");
+      }
+    }
+  }, [dispatch, navigate]);
+
   const handleLogin = async () => {
     setError("");
     setLoading(true);
@@ -46,9 +90,15 @@ const CreateRoom: React.FC = () => {
         setLoggedIn(true);
         dispatch(setRoom({ gmName: name, isGM: true }));
         
+        // Store credentials in localStorage for future auto-login
+        localStorage.setItem("gmCredentials", JSON.stringify({
+          gmName: name,
+          password: password,
+        }));
+        
         // Navigate after a brief delay to show success
         setTimeout(() => {
-          navigate(`/room/${name}`);
+          navigate(`/room/${name}`, { replace: true });
         }, 1500);
       }
     } catch (error: any) {
