@@ -62,6 +62,7 @@ import { useSelector } from "react-redux";
 import type { RootState } from "../store/store";
 import { getSocket } from "../services/socket";
 import { api } from "../services/api";
+import { copyToClipboard } from "../utils/copyToClipboard";
 
 // Sortable item wrapper
 const SortableItem: React.FC<{
@@ -112,6 +113,7 @@ const SortableItem: React.FC<{
         position: 'relative',
         transition: 'all 0.3s ease',
         cursor: 'grab',
+        touchAction: 'none',
         '&:active': {
           cursor: 'grabbing',
         },
@@ -156,7 +158,6 @@ const SortableItem: React.FC<{
         {isCurrent && (
           <Chip
             icon={<PlayArrowIcon />}
-            label="Current Turn"
             color="primary"
             sx={{
               mr: 1,
@@ -247,7 +248,7 @@ const GMView: React.FC = () => {
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
     useSensor(TouchSensor, {
-      activationConstraint: { delay: 100, tolerance: 5 },
+      activationConstraint: { delay: 200, tolerance: 8 },
     })
   );
 
@@ -294,31 +295,6 @@ const GMView: React.FC = () => {
     }
   };
 
-  const handleCopyLink = async (e?: React.MouseEvent) => {
-    if (e) {
-      e.preventDefault();
-      e.stopPropagation();
-    }
-    const joinUrl = `${window.location.origin}/join`;
-    try {
-      await navigator.clipboard.writeText(joinUrl);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
-      console.error('Failed to copy:', err);
-      // Fallback for older browsers
-      const textArea = document.createElement('textarea');
-      textArea.value = joinUrl;
-      textArea.style.position = 'fixed';
-      textArea.style.opacity = '0';
-      document.body.appendChild(textArea);
-      textArea.select();
-      document.execCommand('copy');
-      document.body.removeChild(textArea);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    }
-  };
 
   const handleSortByInitiative = () => {
     setSortDialogOpen(true);
@@ -431,14 +407,26 @@ const GMView: React.FC = () => {
     setMenuAnchorEl(null);
   };
 
-  const handleCopyLinkFromMenu = async () => {
+  const handleCopyLinkFromMenu = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const joinUrl = `${window.location.origin}/join`;
+    
+    try {
+      await copyToClipboard(joinUrl);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy link:', err);
+      alert(`Join URL: ${joinUrl}\n\nPlease copy this manually.`);
+    }
+    
     handleMenuClose();
-    await handleCopyLink();
   };
 
   return (
     <Container maxWidth="md">
-      <Box sx={{ py: 4, touchAction: "none" }}>
+      <Box sx={{ py: 4 }}>
         <Paper
           elevation={4}
           sx={{

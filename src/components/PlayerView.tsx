@@ -28,6 +28,7 @@ import Brightness7Icon from "@mui/icons-material/Brightness7";
 import { useAppSelector } from "../store/store";
 import { getSocket } from "../services/socket";
 import { useThemeMode } from "../contexts/ThemeContext";
+import { copyToClipboard } from "../utils/copyToClipboard";
 
 export default function PlayerView() {
   const entries = useAppSelector((state) => state.room.entries);
@@ -124,36 +125,23 @@ export default function PlayerView() {
     handleColorChangeClick();
   };
 
-  const handleCopyLinkFromMenu = async () => {
-    handleMenuClose();
-    await handleCopyLink();
-  };
-
-  const handleCopyLink = async (e?: React.MouseEvent) => {
-    if (e) {
-      e.preventDefault();
-      e.stopPropagation();
-    }
+  const handleCopyLinkFromMenu = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
     const joinUrl = `${window.location.origin}/join`;
+    
     try {
-      await navigator.clipboard.writeText(joinUrl);
+      await copyToClipboard(joinUrl);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
-      console.error('Failed to copy:', err);
-      // Fallback for older browsers
-      const textArea = document.createElement('textarea');
-      textArea.value = joinUrl;
-      textArea.style.position = 'fixed';
-      textArea.style.opacity = '0';
-      document.body.appendChild(textArea);
-      textArea.select();
-      document.execCommand('copy');
-      document.body.removeChild(textArea);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      console.error('Failed to copy link:', err);
+      alert(`Join URL: ${joinUrl}\n\nPlease copy this manually.`);
     }
+    
+    handleMenuClose();
   };
+
 
   return (
     <Container maxWidth="md">
@@ -213,18 +201,16 @@ export default function PlayerView() {
                 </ListItemIcon>
                 <ListItemText>{mode === 'light' ? 'Dark Mode' : 'Light Mode'}</ListItemText>
               </MenuItem>
-              {playerEntry && (
-                <>
-                  <Divider />
-                  <MenuItem onClick={handleColorChangeFromMenu}>
-                    <ListItemIcon>
-                      <PaletteIcon fontSize="small" />
-                    </ListItemIcon>
-                    <ListItemText>Change Colors</ListItemText>
-                  </MenuItem>
-                </>
-              )}
-              <Divider />
+              {playerEntry ? [
+                <Divider key="divider-1" />,
+                <MenuItem key="colors" onClick={handleColorChangeFromMenu}>
+                  <ListItemIcon>
+                    <PaletteIcon fontSize="small" />
+                  </ListItemIcon>
+                  <ListItemText>Change Colors</ListItemText>
+                </MenuItem>
+              ] : null}
+              <Divider key="divider-2" />
               <MenuItem onClick={handleCopyLinkFromMenu}>
                 <ListItemIcon>
                   {copied ? <CheckCircleIcon fontSize="small" /> : <LinkIcon fontSize="small" />}
@@ -282,7 +268,6 @@ export default function PlayerView() {
                     {isCurrent && (
                       <Chip
                         icon={<PlayArrowIcon />}
-                        label="Current Turn"
                         color="primary"
                         sx={{
                           mr: 2,

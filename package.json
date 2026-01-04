@@ -19,6 +19,7 @@
     "@mui/material": "^7.0.2",
     "@reduxjs/toolkit": "^2.7.0",
     "axios": "^1.8.4",
+    "clipboard-copy": "^4.0.1",
     "express": "^5.1.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
