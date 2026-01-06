@@ -65,7 +65,18 @@ export default function JoinRoom() {
     const fetchActiveGMs = async () => {
       try {
         const resp = await api.get("/active-gms");
-        setGmList(resp.data.gms || []);
+        const allGMs = resp.data.gms || [];
+        
+        // Filter out the current GM if they're logged in
+        const storedGmName = sessionStorage.getItem("gmName");
+        const storedIsGM = sessionStorage.getItem("isGM") === "true";
+        const currentGM = storedIsGM && storedGmName ? storedGmName : null;
+        
+        const filteredGMs = currentGM 
+          ? allGMs.filter((gm: string) => gm !== currentGM)
+          : allGMs;
+        
+        setGmList(filteredGMs);
       } catch (error) {
         console.error("Failed to fetch active GMs:", error);
         setError("Failed to load active game masters");
@@ -118,6 +129,14 @@ export default function JoinRoom() {
   }, [selectedGmName, dispatch]);
 
   function handleSelectGM(gmName: string) {
+    // Prevent GMs from joining their own room
+    const storedGmName = sessionStorage.getItem("gmName");
+    const storedIsGM = sessionStorage.getItem("isGM") === "true";
+    if (storedIsGM && storedGmName === gmName) {
+      setError("You cannot join your own room as a player. Use the GM view instead.");
+      return;
+    }
+    
     setSelectedGmName(gmName);
     setError("");
     setLoading(true);

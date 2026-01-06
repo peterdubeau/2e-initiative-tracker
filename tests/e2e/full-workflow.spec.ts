@@ -40,7 +40,21 @@ test.describe('Full Workflow E2E Test', () => {
     player3Page = await player3Context.newPage();
   });
 
-  test.afterAll(async () => {
+  test.afterAll(async ({ request }) => {
+    // Clean up: Delete the test room from the server
+    try {
+      const hostname = process.env.SOCKET_HOST || 'localhost';
+      const port = process.env.PORT || process.env.SOCKET_PORT || '3001';
+      const response = await request.delete(`http://${hostname}:${port}/room/${GM_NAME}`);
+      if (response.ok()) {
+        console.log(`✅ Cleaned up test room: ${GM_NAME}`);
+      } else {
+        console.log(`⚠️ Failed to clean up test room: ${GM_NAME} (${response.status()})`);
+      }
+    } catch (error) {
+      console.log(`⚠️ Error cleaning up test room: ${error}`);
+    }
+    
     await gmPage.close();
     await player1Page.close();
     await player1Context.close();

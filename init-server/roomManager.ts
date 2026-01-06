@@ -173,4 +173,8 @@ export class RoomManager {
     if (!room) return undefined;
     return room.entries.find((e) => e.id === id);
   }
+
+  deleteRoom(gmName: string): void {
+    delete this.rooms[gmName];
+  }
 }

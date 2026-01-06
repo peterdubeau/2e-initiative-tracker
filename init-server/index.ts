@@ -243,6 +243,19 @@ app.get("/active-gms", (_req, res) => {
   res.json({ gms: activeGMs });
 });
 
+// Delete a room (primarily for test cleanup)
+app.delete("/room/:gmName", (req, res) => {
+  const { gmName } = req.params;
+  if (roomManager.hasRoom(gmName)) {
+    roomManager.deleteRoom(gmName);
+    // Disconnect all sockets in this room
+    io.to(gmName).disconnectSockets(true);
+    res.json({ success: true, message: `Room ${gmName} deleted` });
+  } else {
+    res.status(404).json({ error: "Room not found" });
+  }
+});
+
 // Get encounters for a specific GM
 app.get("/gm-encounters/:gmName", (req, res) => {
   const { gmName } = req.params;
