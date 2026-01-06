@@ -129,6 +129,34 @@ In the **root** folder:
   Start the Vite dev server (add `-- --host` to expose on LAN).  
 - `npm run build`  
   Build the React production bundle.
+- `npm run test:e2e`  
+  Run end-to-end tests with Playwright (requires server to be running with `E2E_TEST_MODE=true`).
+- `npm run test:e2e:ui`  
+  Run E2E tests with Playwright UI mode.
+- `npm run test:e2e:debug`  
+  Run E2E tests in debug mode.
+
+### Running E2E Tests
+
+E2E tests use a separate test directory (`tests/e2e/gm_data/`) to avoid polluting production GM data:
+
+1. **Start the server in test mode:**
+   ```bash
+   cd init-server
+   E2E_TEST_MODE=true npm start
+   ```
+
+2. **In another terminal, start the front end:**
+   ```bash
+   npm run dev
+   ```
+
+3. **Run the tests:**
+   ```bash
+   npm run test:e2e
+   ```
+
+The test scripts automatically set `E2E_TEST_MODE=true` for Playwright, but you must also set it when starting the server.
 
 ---
 

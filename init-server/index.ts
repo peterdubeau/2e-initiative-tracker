@@ -67,7 +67,12 @@ function decodeBase64GMFile(filePath: string): GMData | null {
 // Load all GM files from gm_data/ directory
 function loadAllGMFiles(): Array<{ name: string; Password: string }> {
   const credentials: Array<{ name: string; Password: string }> = [];
-  const gmDataDir = path.join(__dirname, "..", "gm_data");
+  
+  // Use test directory if E2E_TEST_MODE is set, otherwise use production directory
+  const useTestDir = process.env.E2E_TEST_MODE === 'true';
+  const gmDataDir = useTestDir
+    ? path.join(__dirname, "..", "tests", "e2e", "gm_data")
+    : path.join(__dirname, "..", "gm_data");
   
   try {
     // Check if directory exists

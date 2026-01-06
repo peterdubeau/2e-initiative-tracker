@@ -66,7 +66,9 @@ export async function joinAsPlayer(
   playerName: string,
   initiative: number,
   color: string = '#2196f3',
-  textColor: string = '#ffffff'
+  textColor: string = '#ffffff',
+  perceptionModifier?: number,
+  autoRoll: boolean = false
 ): Promise<void> {
   await page.goto('/join');
   
@@ -83,7 +85,30 @@ export async function joinAsPlayer(
   
   // Use getByLabel for Material-UI TextFields
   await page.getByLabel('Character Name').fill(playerName);
-  await page.getByLabel('Initiative Roll').fill(initiative.toString());
+  
+  // Handle perception modifier and auto-roll
+  if (autoRoll) {
+    // Fill perception modifier if provided
+    if (perceptionModifier !== undefined) {
+      await page.getByLabel('Perception Modifier').fill(perceptionModifier.toString());
+    }
+    
+    // Enable auto-roll switch
+    const autoRollSwitch = page.locator(selectors.autoRollSwitch);
+    await autoRollSwitch.waitFor({ state: 'visible', timeout: 5000 });
+    const isChecked = await autoRollSwitch.isChecked();
+    if (!isChecked) {
+      await autoRollSwitch.click();
+    }
+    
+    // Wait for calculated initiative to appear
+    await page.waitForSelector(selectors.calculatedInitiativeDisplay, { timeout: 5000 });
+    // Give a moment for the calculation to complete
+    await page.waitForTimeout(300);
+  } else {
+    // Manual initiative entry (existing behavior)
+    await page.getByLabel('Initiative Roll').fill(initiative.toString());
+  }
   
   // Set colors if provided
   const colorInputs = await page.locator('input[type="color"]').all();

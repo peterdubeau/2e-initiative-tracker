@@ -16,7 +16,11 @@ export const selectors = {
   selectGMCard: 'text=Select Game Master',
   gmListItem: (gmName: string) => `text=${gmName}`,
   playerNameInput: 'label:has-text("Character Name") >> .. >> input[type="text"]',
+  perceptionModifierInput: 'label:has-text("Perception Modifier") >> .. >> input[type="number"]',
+  autoRollSwitch: '[data-testid="auto-roll-switch"]',
   initiativeInput: 'label:has-text("Initiative Roll") >> .. >> input[type="number"]',
+  initiativeRollInput: '[data-testid="initiative-roll-input"]',
+  calculatedInitiativeDisplay: 'text=Calculated Initiative',
   joinButton: 'button:has-text("Join Room")',
   
   // GM View

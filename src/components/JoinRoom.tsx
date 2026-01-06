@@ -1,6 +1,6 @@
 // src/components/JoinRoom.tsx
 import { useState, useEffect } from "react";
-import { Box, TextField, Button, Typography, Alert, Card, CardContent, Container, Paper, CircularProgress } from "@mui/material";
+import { Box, TextField, Button, Typography, Alert, Card, CardContent, Container, Paper, CircularProgress, FormControlLabel, Switch } from "@mui/material";
 import PersonIcon from "@mui/icons-material/Person";
 import { useNavigate } from "react-router-dom";
 import ThemeToggle from "./ThemeToggle";
@@ -17,6 +17,8 @@ export default function JoinRoom() {
   const [loadingGMs, setLoadingGMs] = useState(true);
   const [name, setName] = useState("");
   const [initiative, setInitiative] = useState<string>("");
+  const [perceptionModifier, setPerceptionModifier] = useState<string>("");
+  const [autoRoll, setAutoRoll] = useState<boolean>(false);
   const [color, setColor] = useState("#2196f3");
   const [textColor, setTextColor] = useState("#ffffff");
   const [error, setError] = useState("");
@@ -24,11 +26,21 @@ export default function JoinRoom() {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
 
-  // Load saved player name from localStorage and colors from sessionStorage on mount
+  // Load saved player name, perception modifier, and auto-roll preference from localStorage and colors from sessionStorage on mount
   useEffect(() => {
     const savedName = localStorage.getItem("playerName");
     if (savedName) {
       setName(savedName);
+    }
+    
+    const savedPerceptionModifier = localStorage.getItem("perceptionModifier");
+    if (savedPerceptionModifier) {
+      setPerceptionModifier(savedPerceptionModifier);
+    }
+    
+    const savedAutoRoll = localStorage.getItem("autoRoll");
+    if (savedAutoRoll === "true") {
+      setAutoRoll(true);
     }
     
     // Load saved colors from sessionStorage
@@ -46,6 +58,7 @@ export default function JoinRoom() {
   function generateRandomColor(): string {
     return "#" + Math.floor(Math.random() * 16777215).toString(16).padStart(6, "0");
   }
+
 
   // Fetch active GMs on mount
   useEffect(() => {
@@ -116,15 +129,32 @@ export default function JoinRoom() {
       setError("Name is required");
       return;
     }
-    if (!initiative || initiative === "") {
-      setError("Initiative is required");
-      return;
+    
+    // Determine initiative value based on auto-roll or manual entry
+    let initiativeNumber: number;
+    if (autoRoll) {
+      // Calculate initiative roll when joining: 1d20 + perception modifier
+      const modifier = parseInt(perceptionModifier || "0", 10);
+      const d20Roll = Math.floor(Math.random() * 20) + 1;
+      initiativeNumber = d20Roll + modifier;
+    } else {
+      if (!initiative || initiative === "") {
+        setError("Initiative is required");
+        return;
+      }
+      initiativeNumber = parseInt(initiative, 10);
     }
     
     setError("");
     
-    // Save player name to localStorage
+    // Save player name, perception modifier, and auto-roll preference to localStorage
     localStorage.setItem("playerName", name.trim());
+    if (perceptionModifier) {
+      localStorage.setItem("perceptionModifier", perceptionModifier);
+    } else {
+      localStorage.removeItem("perceptionModifier");
+    }
+    localStorage.setItem("autoRoll", autoRoll ? "true" : "false");
     
     // Assign random color if still using default
     const finalColor = color === "#2196f3" ? generateRandomColor() : color;
@@ -132,7 +162,6 @@ export default function JoinRoom() {
     
     dispatch(setRoom({ gmName: selectedGmName, isGM: false }));
     const socket = getSocket()!;
-    const initiativeNumber = parseInt(initiative, 10);
     socket.emit("join-room", {
       name: name.trim(),
       roll: initiativeNumber,
@@ -293,17 +322,56 @@ export default function JoinRoom() {
               required
             />
 
-            <TextField
-              label="Initiative Roll"
-              type="number"
-              value={initiative}
-              onChange={(e) => setInitiative(e.target.value)}
-              fullWidth
-              margin="normal"
-              sx={{ mb: 3 }}
-              inputProps={{ min: 0 }}
-              required
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={autoRoll}
+                  onChange={(e) => setAutoRoll(e.target.checked)}
+                  data-testid="auto-roll-switch"
+                />
+              }
+              label="Auto-roll Initiative (1d20 + Perception Modifier)"
+              sx={{ mb: 2 }}
             />
+
+            {autoRoll ? (
+              <>
+                <TextField
+                  label="Perception Modifier"
+                  type="number"
+                  value={perceptionModifier}
+                  onChange={(e) => setPerceptionModifier(e.target.value)}
+                  fullWidth
+                  margin="normal"
+                  sx={{ mb: 2 }}
+                  inputProps={{ step: 1 }}
+                  helperText="Optional: Your perception modifier (can be negative)"
+                />
+                <Box sx={{ mb: 3 }}>
+                  <Alert severity="info" sx={{ mb: 2 }}>
+                    <Typography variant="body1" sx={{ fontWeight: 600 }}>
+                      Initiative will be rolled automatically when you join
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      (1d20 + {parseInt(perceptionModifier || "0", 10)})
+                    </Typography>
+                  </Alert>
+                </Box>
+              </>
+            ) : (
+              <TextField
+                label="Initiative Roll"
+                type="number"
+                value={initiative}
+                onChange={(e) => setInitiative(e.target.value)}
+                fullWidth
+                margin="normal"
+                sx={{ mb: 3 }}
+                inputProps={{ min: 0 }}
+                required
+                data-testid="initiative-roll-input"
+              />
+            )}
 
             <Box
               sx={{
@@ -421,7 +489,7 @@ export default function JoinRoom() {
               fullWidth
               size="large"
               onClick={handleJoin}
-              disabled={!name.trim() || !initiative || initiative === ""}
+              disabled={!name.trim() || (!autoRoll && (!initiative || initiative === ""))}
               sx={{
                 py: 1.5,
                 fontSize: '1.1rem',
