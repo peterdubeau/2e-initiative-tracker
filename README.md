@@ -94,18 +94,53 @@ On any device in your local network, open a browser and go to:
 http://<your‑machine‑ip>:5173
 ```
 
+Or if HTTPS is configured (see HTTPS Setup below):
+
+```
+https://<your‑machine‑ip>:5173
+```
+
 For example:
 ```
 http://192.168.1.154:5173
+# or
+https://192.168.1.154:5173
 ```
+
+**Note:** The app automatically detects whether it's being served over HTTP or HTTPS and adjusts API and socket connections accordingly.
 
 ---
 
-## 5. Workflow
+## 5. HTTPS Setup (Optional, for Locked Device Notifications)
+
+To enable sound notifications when the device is locked, HTTPS is required. See `SETUP_HTTPS.md` for detailed instructions.
+
+**Quick setup with mkcert:**
+```bash
+# Install mkcert (if not already installed)
+brew install mkcert
+
+# Install local CA (requires sudo)
+sudo mkcert -install
+
+# Generate certificates
+mkdir -p certs
+cd certs
+mkcert localhost 127.0.0.1 <your-lan-ip> ::1
+mv localhost+3.pem cert.pem
+mv localhost+3-key.pem key.pem
+cd ..
+```
+
+Once certificates are in the `certs/` directory, both servers will automatically use HTTPS when restarted.
+
+---
+
+## 6. Workflow
 
 1. **Create game**  
    - Click **Create Game** → the GM gets a 4‑letter code.  
-   - Share the link (e.g. `http://192.168.1.154:5173/join/ABCD`) or use the copy‑to‑clipboard button.
+   - Share the link (e.g. `http://192.168.1.154:5173/join/ABCD` or `https://192.168.1.154:5173/join/ABCD`) or use the copy‑to‑clipboard button.
 
 2. **Join game**  
    - Players click **Join Game** from the home page, enter the 4‑letter code, then enter name, initiative, and color.
@@ -116,7 +151,7 @@ http://192.168.1.154:5173
 
 ---
 
-## 6. NPM scripts
+## 7. NPM scripts
 
 In the **init-server/** folder:
 

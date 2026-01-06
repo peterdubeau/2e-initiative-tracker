@@ -1,0 +1,19 @@
+{
+  "name": "Hunter Tracker",
+  "short_name": "Tracker",
+  "description": "Pathfinder 2e Initiative Tracker",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#2196F3",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/vite.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
+

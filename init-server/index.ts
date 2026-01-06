@@ -1,5 +1,6 @@
 import express from "express";
 import http from "http";
+import https from "https";
 import cors from "cors";
 import { Server, Socket } from "socket.io";
 import os from "os";
@@ -8,21 +9,39 @@ import path from "path";
 import { RoomManager } from "./roomManager"; // add .ts extension for ts-node resolution
 
 const app = express();
-const server = http.createServer(app);
+
+// Try to load HTTPS certificates, fallback to HTTP if not found
+let server: http.Server | https.Server;
+const certPath = path.join(__dirname, "..", "certs");
+const keyPath = path.join(certPath, "key.pem");
+const certFilePath = path.join(certPath, "cert.pem");
+
+if (fs.existsSync(keyPath) && fs.existsSync(certFilePath)) {
+  const key = fs.readFileSync(keyPath, "utf8");
+  const cert = fs.readFileSync(certFilePath, "utf8");
+  server = https.createServer({ key, cert }, app);
+  console.log("🔒 HTTPS enabled with certificates");
+} else {
+  server = http.createServer(app);
+  console.log("⚠️  HTTP mode (HTTPS certificates not found)");
+  console.log(`   To enable HTTPS, create certificates in: ${certPath}`);
+}
 
 // Allow CORS from localhost and any local network IP (192.168.x.x, 10.x.x.x, 172.16-31.x.x)
+// Supports both HTTP and HTTPS
 const corsOptions = {
   origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
     // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
     
-    // Allow localhost
-    if (origin.startsWith('http://localhost:') || origin.startsWith('http://127.0.0.1:')) {
+    // Allow localhost (HTTP and HTTPS)
+    if (origin.startsWith('http://localhost:') || origin.startsWith('http://127.0.0.1:') ||
+        origin.startsWith('https://localhost:') || origin.startsWith('https://127.0.0.1:')) {
       return callback(null, true);
     }
     
-    // Allow local network IPs (192.168.x.x, 10.x.x.x, 172.16-31.x.x)
-    const localNetworkRegex = /^http:\/\/(192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2[0-9]|3[01])\.\d+\.\d+):\d+$/;
+    // Allow local network IPs (HTTP and HTTPS) - 192.168.x.x, 10.x.x.x, 172.16-31.x.x
+    const localNetworkRegex = /^(http|https):\/\/(192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2[0-9]|3[01])\.\d+\.\d+):\d+$/;
     if (localNetworkRegex.test(origin)) {
       return callback(null, true);
     }
@@ -193,7 +212,7 @@ function getLocalNetworkIP(): string {
   return "localhost";
 }
 
-// Endpoint to get server configuration (IP and port)
+// Endpoint to get server configuration (IP, port, and protocol)
 app.get("/api-config", (req, res) => {
   let serverIP = getLocalNetworkIP(); // Fallback to detected IP
   
@@ -211,9 +230,13 @@ app.get("/api-config", (req, res) => {
     }
   }
   
+  // Determine protocol: if server is HTTPS, return 'https', otherwise 'http'
+  const protocol = server instanceof https.Server ? 'https' : 'http';
+  
   res.json({ 
     host: serverIP,
-    port: PORT 
+    port: PORT,
+    protocol: protocol
   });
 });
 
@@ -619,7 +642,8 @@ const HOST = "0.0.0.0";
 // use the options overload: listen({ port, host }, callback)
 server.listen({ port: PORT, host: HOST }, () => {
   const serverIP = getLocalNetworkIP();
-  console.log(`Server listening on ${HOST}:${PORT}`);
+  const protocol = server instanceof https.Server ? 'https' : 'http';
+  console.log(`Server listening on ${HOST}:${PORT} (${protocol.toUpperCase()})`);
   console.log(`Server IP: ${serverIP}`);
-  console.log(`API config available at: http://${serverIP}:${PORT}/api-config`);
+  console.log(`API config available at: ${protocol}://${serverIP}:${PORT}/api-config`);
 });

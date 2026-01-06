@@ -1,10 +1,11 @@
 // src/components/Room.tsx
-import React, { useEffect } from "react";
+import React, { useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useDispatch } from "react-redux";
 import type { AppDispatch } from "../store/store";
 import { setRoom, updateEntries, setTurnIndex } from "../store/roomSlice";
 import { connect } from "../services/socket";
+import { sendNotificationToServiceWorker } from "../services/notificationService";
 import GMView from "./GMView";
 import PlayerView from "./PlayerView";
 
@@ -17,6 +18,10 @@ const Room: React.FC = () => {
   const storedGmName = sessionStorage.getItem("gmName");
   const storedIsGM = sessionStorage.getItem("isGM") === "true";
   const isGM = storedIsGM && storedGmName === gmName;
+
+  // Track previous turn index to detect changes
+  const prevTurnIndexRef = useRef<number>(-1);
+  const prevEntriesRef = useRef<any[]>([]);
 
   useEffect(() => {
     if (!gmName) return;
@@ -39,8 +44,64 @@ const Room: React.FC = () => {
     
     // Listen for updates
     const handleRoomUpdate = (state: any) => {
-      dispatch(updateEntries(state.entries));
-      dispatch(setTurnIndex(state.currentTurnIndex));
+      const { entries, currentTurnIndex } = state;
+      
+      // Check if turn changed (for notification)
+      const turnChanged = currentTurnIndex !== prevTurnIndexRef.current;
+      const entriesChanged = JSON.stringify(entries) !== JSON.stringify(prevEntriesRef.current);
+      
+      // Only check for notifications if user is a player (not GM)
+      if (!isGM && (turnChanged || entriesChanged)) {
+        // Get player's entry ID from sessionStorage
+        const playerName = sessionStorage.getItem("name");
+        const playerEntry = playerName 
+          ? entries.find((e: any) => !e.isMonster && e.name === playerName)
+          : null;
+        
+        if (playerEntry && entries.length > 0) {
+          // Calculate next turn index (similar to roomManager.nextTurn logic)
+          const total = entries.length;
+          let nextIdx = currentTurnIndex;
+          
+          // Find next non-hidden entry
+          for (let i = 1; i <= total; i++) {
+            const candidate = (currentTurnIndex + i) % total;
+            if (!entries[candidate].hidden) {
+              nextIdx = candidate;
+              break;
+            }
+          }
+          
+          const nextEntry = entries[nextIdx];
+          
+          // Check if next entry is the player's entry and not a monster
+          if (nextEntry && 
+              nextEntry.id === playerEntry.id && 
+              !nextEntry.isMonster) {
+            // Player is next! Send notification
+            console.log('🎯 Player is next! Sending notification...', {
+              playerName: playerEntry.name,
+              currentTurnIndex,
+              nextIndex: nextIdx,
+              nextEntry: nextEntry.name
+            });
+            sendNotificationToServiceWorker({
+              type: 'turn-notification',
+              message: `You are next in initiative!`,
+              sound: true,
+              vibrate: true,
+            });
+          }
+        }
+      }
+      
+      // Update refs
+      prevTurnIndexRef.current = currentTurnIndex;
+      prevEntriesRef.current = entries;
+      
+      // Update Redux state
+      dispatch(updateEntries(entries));
+      dispatch(setTurnIndex(currentTurnIndex));
     };
     socket.on("room-update", handleRoomUpdate);
 

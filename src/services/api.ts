@@ -14,12 +14,18 @@ const getInitialPort = (): string => {
   return import.meta.env.VITE_API_PORT || "3001";
 };
 
+// Get protocol from current page (https or http)
+const getProtocol = (): string => {
+  return window.location.protocol === 'https:' ? 'https' : 'http';
+};
+
 // Create initial API client (will be updated after fetching server config)
 let apiHost = getInitialHost();
 let apiPort = getInitialPort();
+let apiProtocol = getProtocol();
 
 export const api = axios.create({
-  baseURL: `http://${apiHost}:${apiPort}`,
+  baseURL: `${apiProtocol}://${apiHost}:${apiPort}`,
 });
 
 // Fetch server configuration and update API client
@@ -34,15 +40,18 @@ async function fetchServerConfig() {
     // This ensures we connect to the backend on the same machine as the frontend
     const tempHost = window.location.hostname;
     const tempPort = import.meta.env.VITE_API_PORT || "3001";
-    const configUrl = `http://${tempHost}:${tempPort}/api-config`;
+    const tempProtocol = getProtocol();
+    const configUrl = `${tempProtocol}://${tempHost}:${tempPort}/api-config`;
     
     const response = await axios.get(configUrl, { timeout: 5000 });
-    const { host, port } = response.data;
+    const { host, port, protocol } = response.data;
     
     if (host && port) {
       apiHost = host;
       apiPort = port.toString();
-      api.defaults.baseURL = `http://${apiHost}:${apiPort}`;
+      // Use protocol from server response if provided, otherwise use current page protocol
+      apiProtocol = protocol || tempProtocol;
+      api.defaults.baseURL = `${apiProtocol}://${apiHost}:${apiPort}`;
     }
   } catch (error) {
     // Fall back to initial values

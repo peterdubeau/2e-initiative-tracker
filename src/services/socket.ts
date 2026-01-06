@@ -23,9 +23,11 @@ export function connect(gmName: string, isGM: boolean) {
     // build the socket URL dynamically from wherever the front‑end is served
     const hostname = window.location.hostname; // e.g. 192.168.1.154
     const SOCKET_PORT = import.meta.env.VITE_SOCKET_PORT || "3001";
-    const SOCKET_URL = `http://${hostname}:${SOCKET_PORT}`;
+    // Use https/wss if the current page is served over HTTPS, otherwise http/ws
+    const protocol = window.location.protocol === 'https:' ? 'https' : 'http';
+    const SOCKET_URL = `${protocol}://${hostname}:${SOCKET_PORT}`;
 
-    console.log(`Creating new socket for ${gmName} (${isGM ? 'GM' : 'Player'})`);
+    console.log(`Creating new socket for ${gmName} (${isGM ? 'GM' : 'Player'}) at ${SOCKET_URL}`);
     socket = io(SOCKET_URL, {
       // server code reads `socket.handshake.query.gmName` and `.gm`
       query: { gmName: gmName, gm: isGM },
