@@ -88,22 +88,24 @@ export async function joinAsPlayer(
   
   // Handle perception modifier and auto-roll
   if (autoRoll) {
-    // Fill perception modifier if provided
-    if (perceptionModifier !== undefined) {
-      await page.getByLabel('Perception Modifier').fill(perceptionModifier.toString());
-    }
-    
-    // Enable auto-roll switch
+    // Enable auto-roll switch FIRST (field only appears when enabled)
     const autoRollSwitch = page.locator(selectors.autoRollSwitch);
     await autoRollSwitch.waitFor({ state: 'visible', timeout: 5000 });
     const isChecked = await autoRollSwitch.isChecked();
     if (!isChecked) {
       await autoRollSwitch.click();
+      // Wait for the perception modifier field to appear
+      await page.waitForTimeout(300);
     }
     
-    // Wait for calculated initiative to appear
+    // Now fill perception modifier if provided (field should be visible now)
+    if (perceptionModifier !== undefined) {
+      await page.getByRole('spinbutton', { name: 'Perception Modifier' }).fill(perceptionModifier.toString());
+    }
+    
+    // Wait for info message to appear
     await page.waitForSelector(selectors.calculatedInitiativeDisplay, { timeout: 5000 });
-    // Give a moment for the calculation to complete
+    // Give a moment for the UI to update
     await page.waitForTimeout(300);
   } else {
     // Manual initiative entry (existing behavior)

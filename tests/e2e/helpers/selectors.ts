@@ -20,7 +20,7 @@ export const selectors = {
   autoRollSwitch: '[data-testid="auto-roll-switch"]',
   initiativeInput: 'label:has-text("Initiative Roll") >> .. >> input[type="number"]',
   initiativeRollInput: '[data-testid="initiative-roll-input"]',
-  calculatedInitiativeDisplay: 'text=Calculated Initiative',
+  calculatedInitiativeDisplay: 'text=Initiative will be rolled automatically when you join',
   joinButton: 'button:has-text("Join Room")',
   
   // GM View

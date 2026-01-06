@@ -24,6 +24,12 @@ test.describe('Full Workflow E2E Test', () => {
   let player2Page: Page;
   let player3Context: BrowserContext;
   let player3Page: Page;
+  let player4Context: BrowserContext;
+  let player4Page: Page;
+  let player5Context: BrowserContext;
+  let player5Page: Page;
+  let player6Context: BrowserContext;
+  let player6Page: Page;
 
   test.beforeAll(async ({ browser }) => {
     // Create GM page
@@ -38,6 +44,39 @@ test.describe('Full Workflow E2E Test', () => {
     
     player3Context = await browser.newContext();
     player3Page = await player3Context.newPage();
+    
+    player4Context = await browser.newContext();
+    player4Page = await player4Context.newPage();
+    
+    player5Context = await browser.newContext();
+    player5Page = await player5Context.newPage();
+    
+    player6Context = await browser.newContext();
+    player6Page = await player6Context.newPage();
+  });
+
+  test.beforeEach(async () => {
+    // Reset GM page state by navigating to home first
+    // This ensures we're on a valid page before accessing localStorage
+    try {
+      await gmPage.goto('/', { waitUntil: 'domcontentloaded', timeout: 5000 });
+      await gmPage.waitForTimeout(200);
+    } catch (error) {
+      // If navigation fails, try to reload the page
+      await gmPage.reload({ waitUntil: 'domcontentloaded', timeout: 5000 });
+      await gmPage.waitForTimeout(200);
+    }
+    
+    // Clear localStorage to prevent auto-login from interfering with tests
+    // The CreateRoom component auto-logs in if credentials are stored
+    // Only clear if we're on a valid page (not about:blank)
+    const url = gmPage.url();
+    if (url && !url.startsWith('about:')) {
+      await gmPage.evaluate(() => {
+        localStorage.clear();
+        sessionStorage.clear();
+      });
+    }
   });
 
   test.afterAll(async ({ request }) => {
@@ -62,6 +101,12 @@ test.describe('Full Workflow E2E Test', () => {
     await player2Context.close();
     await player3Page.close();
     await player3Context.close();
+    await player4Page.close();
+    await player4Context.close();
+    await player5Page.close();
+    await player5Context.close();
+    await player6Page.close();
+    await player6Context.close();
   });
 
   test('Complete workflow: GM login, players join, encounter load, turn rotation, color updates, and removals', async () => {
@@ -117,6 +162,64 @@ test.describe('Full Workflow E2E Test', () => {
     await expect(player3Page.locator('text=Player Three')).toBeVisible();
 
     // ============================================
+    // 2a. Players Join with Auto-Roll Initiative
+    // ============================================
+    // Player 4 joins with auto-roll enabled and positive perception modifier (+5)
+    await joinAsPlayer(player4Page, GM_NAME, 'AutoRoll Player +5', 0, '#ff00ff', '#ffffff', 5, true);
+    await waitForRoomUpdate(gmPage, 4);
+    
+    // Verify player appears in GM view
+    const entriesAfterPlayer4 = await getVisibleEntries(gmPage);
+    const player4Entry = entriesAfterPlayer4.find(e => e.name === 'AutoRoll Player +5');
+    expect(player4Entry).toBeDefined();
+    
+    // Verify initiative is within expected range (1d20 + 5 = 6-25)
+    if (player4Entry) {
+      expect(player4Entry.roll).toBeGreaterThanOrEqual(6);
+      expect(player4Entry.roll).toBeLessThanOrEqual(25);
+    }
+    
+    // Player 5 joins with auto-roll enabled and negative perception modifier (-2)
+    await joinAsPlayer(player5Page, GM_NAME, 'AutoRoll Player -2', 0, '#00ffff', '#000000', -2, true);
+    await waitForRoomUpdate(gmPage, 5);
+    
+    // Verify player appears in GM view
+    const entriesAfterPlayer5 = await getVisibleEntries(gmPage);
+    const player5Entry = entriesAfterPlayer5.find(e => e.name === 'AutoRoll Player -2');
+    expect(player5Entry).toBeDefined();
+    
+    // Verify initiative is within expected range (1d20 - 2 = -1 to 18)
+    if (player5Entry) {
+      expect(player5Entry.roll).toBeGreaterThanOrEqual(-1);
+      expect(player5Entry.roll).toBeLessThanOrEqual(18);
+    }
+    
+    // Player 6 joins with auto-roll enabled and no perception modifier (defaults to 0)
+    await joinAsPlayer(player6Page, GM_NAME, 'AutoRoll Player 0', 0, '#ffff00', '#000000', undefined, true);
+    await waitForRoomUpdate(gmPage, 6);
+    
+    // Verify player appears in GM view
+    const entriesAfterPlayer6 = await getVisibleEntries(gmPage);
+    const player6Entry = entriesAfterPlayer6.find(e => e.name === 'AutoRoll Player 0');
+    expect(player6Entry).toBeDefined();
+    
+    // Verify initiative is within expected range (1d20 + 0 = 1-20)
+    if (player6Entry) {
+      expect(player6Entry.roll).toBeGreaterThanOrEqual(1);
+      expect(player6Entry.roll).toBeLessThanOrEqual(20);
+    }
+    
+    // Verify all players (manual and auto-roll) appear together
+    const allEntries = await getVisibleEntries(gmPage);
+    expect(allEntries.length).toBe(6);
+    expect(allEntries.some(e => e.name === 'Player One')).toBe(true);
+    expect(allEntries.some(e => e.name === 'Player Two')).toBe(true);
+    expect(allEntries.some(e => e.name === 'Player Three')).toBe(true);
+    expect(allEntries.some(e => e.name === 'AutoRoll Player +5')).toBe(true);
+    expect(allEntries.some(e => e.name === 'AutoRoll Player -2')).toBe(true);
+    expect(allEntries.some(e => e.name === 'AutoRoll Player 0')).toBe(true);
+
+    // ============================================
     // 3. GM Loads an Encounter
     // ============================================
     // Expand encounters accordion
@@ -148,9 +251,14 @@ test.describe('Full Workflow E2E Test', () => {
     await verifyEntry(gmPage, 'Player Two', 12);
     await verifyEntry(gmPage, 'Player Three', 18);
     
-    // Verify total entries (3 players + 3 monsters = 6)
+    // Verify auto-roll players are still present
     const entriesAfterEncounter = await getVisibleEntries(gmPage);
-    expect(entriesAfterEncounter.length).toBeGreaterThanOrEqual(6);
+    expect(entriesAfterEncounter.some(e => e.name === 'AutoRoll Player +5')).toBe(true);
+    expect(entriesAfterEncounter.some(e => e.name === 'AutoRoll Player -2')).toBe(true);
+    expect(entriesAfterEncounter.some(e => e.name === 'AutoRoll Player 0')).toBe(true);
+    
+    // Verify total entries (6 players + 3 monsters = 9)
+    expect(entriesAfterEncounter.length).toBeGreaterThanOrEqual(9);
 
     // ============================================
     // 4. GM Rotates Turn Order
@@ -294,6 +402,121 @@ test.describe('Full Workflow E2E Test', () => {
     // Verify all entries are removed (Clear All removes players AND monsters)
     const entriesAfterClear = await getVisibleEntries(gmPage);
     expect(entriesAfterClear.length).toBe(0);
+  });
+
+  test('Preferences persist across room joins', async () => {
+    // Login as GM (page is reset by beforeEach, loginAsGM navigates to /create internally)
+    await loginAsGM(gmPage, GM_NAME, GM_PASSWORD);
+    await expect(gmPage.locator(selectors.gmView)).toBeVisible();
+    
+    // Clear any existing entries
+    const existingEntries = await getVisibleEntries(gmPage);
+    if (existingEntries.length > 0) {
+      await clearAllPlayers(gmPage);
+      await waitForRoomUpdate(gmPage, 0);
+    }
+    
+    // Player joins with auto-roll and perception modifier
+    await player1Page.goto('/join');
+    await player1Page.waitForSelector(selectors.selectGMCard);
+    await player1Page.click(selectors.gmListItem(GM_NAME));
+    await player1Page.waitForLoadState('networkidle');
+    await player1Page.waitForSelector('text=Join Game', { timeout: 10000 });
+    
+    // Fill character name first
+    await player1Page.getByLabel('Character Name').fill('Prefs Test Player');
+    
+    // Enable auto-roll and set perception modifier
+    const autoRollSwitch = player1Page.locator(selectors.autoRollSwitch);
+    await autoRollSwitch.click();
+    await player1Page.waitForTimeout(300);
+    
+    // Fill perception modifier
+    await player1Page.getByRole('spinbutton', { name: 'Perception Modifier' }).fill('7');
+    
+    // Join room
+    await player1Page.click(selectors.joinButton);
+    await player1Page.waitForURL(`**/room/${GM_NAME}`, { timeout: 10000 });
+    await waitForRoomUpdate(gmPage, 1);
+    
+    // Navigate back to join page
+    await player1Page.goto('/join');
+    await player1Page.waitForSelector(selectors.selectGMCard);
+    await player1Page.click(selectors.gmListItem(GM_NAME));
+    await player1Page.waitForLoadState('networkidle');
+    await player1Page.waitForSelector('text=Join Game', { timeout: 10000 });
+    
+    // Verify preferences are restored
+    const autoRollSwitch2 = player1Page.locator(selectors.autoRollSwitch);
+    const isChecked = await autoRollSwitch2.isChecked();
+    expect(isChecked).toBe(true);
+    
+    const perceptionModifierValue = await player1Page.getByRole('spinbutton', { name: 'Perception Modifier' }).inputValue();
+    expect(perceptionModifierValue).toBe('7');
+  });
+
+  test('Perception modifier field visibility based on auto-roll toggle', async () => {
+    // Login as GM (page is reset by beforeEach, loginAsGM navigates to /create internally)
+    await loginAsGM(gmPage, GM_NAME, GM_PASSWORD);
+    await expect(gmPage.locator(selectors.gmView)).toBeVisible();
+    
+    // Clear player page localStorage to ensure clean state (previous test may have set preferences)
+    await player1Page.goto('/join');
+    await player1Page.evaluate(() => {
+      localStorage.removeItem('autoRoll');
+      localStorage.removeItem('perceptionModifier');
+    });
+    
+    // Navigate to join page as a player
+    await player1Page.goto('/join');
+    await player1Page.waitForSelector(selectors.selectGMCard);
+    await player1Page.click(selectors.gmListItem(GM_NAME));
+    await player1Page.waitForLoadState('networkidle');
+    await player1Page.waitForSelector('text=Join Game', { timeout: 10000 });
+    
+    // Initially, auto-roll should be off (preferences cleared)
+    const autoRollSwitch = player1Page.locator(selectors.autoRollSwitch);
+    const isChecked = await autoRollSwitch.isChecked();
+    expect(isChecked).toBe(false);
+    
+    // Perception modifier field should not exist when auto-roll is off (conditionally rendered)
+    const perceptionModifierField = player1Page.getByRole('spinbutton', { name: 'Perception Modifier' });
+    await expect(perceptionModifierField).toHaveCount(0);
+    
+    // Manual initiative input should be visible
+    await expect(player1Page.locator(selectors.initiativeRollInput)).toBeVisible();
+    
+    // Enable auto-roll
+    await autoRollSwitch.click();
+    await player1Page.waitForTimeout(300);
+    
+    // Now perception modifier should be visible
+    await expect(perceptionModifierField).toBeVisible();
+    
+    // Manual initiative input should NOT be visible
+    await expect(player1Page.locator(selectors.initiativeRollInput)).toHaveCount(0);
+    
+    // Info message about auto-roll should be visible
+    await expect(player1Page.locator('text=Initiative will be rolled automatically when you join')).toBeVisible();
+  });
+
+  test('GM cannot join their own room', async () => {
+    // Login as GM (page is reset by beforeEach, loginAsGM navigates to /create internally)
+    await loginAsGM(gmPage, GM_NAME, GM_PASSWORD);
+    await expect(gmPage.locator(selectors.gmView)).toBeVisible();
+    
+    // Navigate to join page
+    await gmPage.goto('/join');
+    await gmPage.waitForSelector(selectors.selectGMCard);
+    
+    // Verify GM's own room is NOT in the list
+    const gmListItems = gmPage.locator('text=' + GM_NAME);
+    await expect(gmListItems).toHaveCount(0);
+    
+    // Verify other rooms (if any) are still visible
+    // This test assumes there might be other rooms, but at minimum, GM's room should be filtered out
+    const allGmItems = await gmPage.locator('[class*="MuiPaper-root"]').filter({ hasText: GM_NAME }).count();
+    expect(allGmItems).toBe(0);
   });
 });
 
