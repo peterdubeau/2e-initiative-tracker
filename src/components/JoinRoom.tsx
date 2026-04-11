@@ -5,9 +5,14 @@ import PersonIcon from "@mui/icons-material/Person";
 import { useNavigate } from "react-router-dom";
 import ThemeToggle from "./ThemeToggle";
 import { useAppDispatch } from "../store/store";
-import { setRoom } from "../store/roomSlice";
+import {
+  setRoom,
+  updateEntries,
+  setTurnIndex,
+  setTurnDisplayMode,
+  setNextTurnPlacement,
+} from "../store/roomSlice";
 import { connect, getSocket } from "../services/socket";
-import { updateEntries, setTurnIndex } from "../store/roomSlice";
 import { api } from "../services/api";
 
 export default function JoinRoom() {
@@ -103,9 +108,20 @@ export default function JoinRoom() {
 
     const socket = connect(selectedGmName, false);
 
-    socket.on("room-update", (state) => {
-      dispatch(updateEntries(state.entries));
+    socket.on("room-update", (state: {
+      entries: unknown;
+      currentTurnIndex: number;
+      turnDisplayMode?: string;
+      nextTurnPlacement?: string;
+    }) => {
+      dispatch(updateEntries(state.entries as never));
       dispatch(setTurnIndex(state.currentTurnIndex));
+      if (state.turnDisplayMode === "pointer" || state.turnDisplayMode === "rotation") {
+        dispatch(setTurnDisplayMode(state.turnDisplayMode));
+      }
+      if (state.nextTurnPlacement === "top" || state.nextTurnPlacement === "bottom") {
+        dispatch(setNextTurnPlacement(state.nextTurnPlacement));
+      }
     });
 
     socket.on("connect", () => {

@@ -292,6 +292,15 @@ app.post("/create-room", express.json(), (req, res) => {
 const socketToEntryId = new Map<string, string>();
 const entryIdToSockets = new Map<string, Set<string>>();
 
+function isGmSocketQuery(gm: unknown): boolean {
+  if (gm === true || gm === 1) return true;
+  if (typeof gm === "string") {
+    const s = gm.toLowerCase();
+    return s === "true" || s === "1";
+  }
+  return false;
+}
+
 io.on("connection", (socket: Socket) => {
   const { gmName, gm } = socket.handshake.query as {
     gmName: string;
@@ -402,6 +411,28 @@ io.on("connection", (socket: Socket) => {
   socket.on("reorder-entries", ({ from, to }) => {
     console.log("reorder-entries", { from, to });
     roomManager.reorderEntries(gmName, from, to);
+    io.to(gmName).emit("room-update", roomManager.getRoomState(gmName));
+  });
+
+  socket.on("set-turn-display-mode", (mode: unknown) => {
+    if (!isGmSocketQuery(gm)) {
+      return;
+    }
+    if (mode !== "pointer" && mode !== "rotation") {
+      return;
+    }
+    roomManager.setTurnDisplayMode(gmName, mode);
+    io.to(gmName).emit("room-update", roomManager.getRoomState(gmName));
+  });
+
+  socket.on("set-next-turn-placement", (placement: unknown) => {
+    if (!isGmSocketQuery(gm)) {
+      return;
+    }
+    if (placement !== "top" && placement !== "bottom") {
+      return;
+    }
+    roomManager.setNextTurnPlacement(gmName, placement);
     io.to(gmName).emit("room-update", roomManager.getRoomState(gmName));
   });
 

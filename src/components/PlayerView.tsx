@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { 
   Box, 
   Typography, 
@@ -28,6 +28,7 @@ import Brightness7Icon from "@mui/icons-material/Brightness7";
 import { useAppSelector } from "../store/store";
 import { getSocket } from "../services/socket";
 import { useThemeMode } from "../contexts/ThemeContext";
+import { rotateVisibleEntriesToCurrent } from "../utils/rotateEntriesToCurrent";
 import { copyToClipboard } from "../utils/copyToClipboard";
 
 export default function PlayerView() {
@@ -42,6 +43,9 @@ export default function PlayerView() {
   const [editingTextColor, setEditingTextColor] = useState("#ffffff");
   const [menuAnchorEl, setMenuAnchorEl] = useState<null | HTMLElement>(null);
   const { mode, toggleTheme } = useThemeMode();
+  const turnDisplayMode = useAppSelector(
+    (state) => state.room.turnDisplayMode
+  );
   const menuOpen = Boolean(menuAnchorEl);
 
   // 1. Determine which entry is "current" by id
@@ -50,34 +54,43 @@ export default function PlayerView() {
   // 2. Filter out hidden entries for display
   const visibleEntries = entries.filter((entry) => !entry.hidden);
 
+  const displayEntries = useMemo(() => {
+    const visible = entries.filter((entry) => !entry.hidden);
+    if (turnDisplayMode === "rotation") {
+      return rotateVisibleEntriesToCurrent(entries, currentTurnIndex);
+    }
+    return visible;
+  }, [turnDisplayMode, entries, currentTurnIndex]);
+
   // Find the player's own entry by matching name from sessionStorage
   const playerName = sessionStorage.getItem("name");
   const playerEntry = playerName ? entries.find(e => !e.isMonster && e.name === playerName) : null;
 
-  // Initialize colors from sessionStorage or player entry
+  // Align sessionStorage with the server entry (GM may change colors). Never push stale
+  // session colors to the server — that overwrote GM updates and reverted text color too.
   useEffect(() => {
-    if (playerEntry) {
-      const savedColor = sessionStorage.getItem("color");
-      const savedTextColor = sessionStorage.getItem("textColor");
-      
-      // If entry doesn't have textColor but we have it in sessionStorage, update it
-      if (!playerEntry.textColor && savedTextColor) {
-        const socket = getSocket();
-        socket.emit("update-entry", {
-          ...playerEntry,
-          textColor: savedTextColor,
-        });
-      }
-      
-      // If entry color doesn't match sessionStorage, update it
-      if (savedColor && playerEntry.color !== savedColor) {
-        const socket = getSocket();
-        socket.emit("update-entry", {
-          ...playerEntry,
-          color: savedColor,
-          textColor: savedTextColor || playerEntry.textColor || '#ffffff',
-        });
-      }
+    if (!playerEntry) return;
+
+    const savedColor = sessionStorage.getItem("color");
+    const savedTextColor = sessionStorage.getItem("textColor");
+
+    if (playerEntry.color !== savedColor) {
+      sessionStorage.setItem("color", playerEntry.color);
+    }
+    if (
+      playerEntry.textColor !== undefined &&
+      playerEntry.textColor !== savedTextColor
+    ) {
+      sessionStorage.setItem("textColor", playerEntry.textColor);
+    }
+
+    // One-time backfill: server entry missing textColor but client chose one at join
+    if (!playerEntry.textColor && savedTextColor) {
+      const socket = getSocket();
+      socket.emit("update-entry", {
+        ...playerEntry,
+        textColor: savedTextColor,
+      });
     }
   }, [playerEntry]);
 
@@ -240,17 +253,21 @@ export default function PlayerView() {
           </Paper>
         ) : (
           <Box>
-            {visibleEntries.map((entry, index) => {
-              const isCurrent = entry.id === currentEntryId;
+            {displayEntries.map((entry) => {
+              const showPointerStyle =
+                turnDisplayMode === "pointer" &&
+                entry.id === currentEntryId;
+              const canonicalRankAmongVisible =
+                visibleEntries.findIndex((e) => e.id === entry.id) + 1;
               return (
                 <Paper
                   key={entry.id}
-                  elevation={isCurrent ? 8 : 2}
+                  elevation={showPointerStyle ? 8 : 2}
                   sx={{
                     mb: 2,
                     borderRadius: 3,
                     overflow: 'hidden',
-                    border: isCurrent ? 3 : 0,
+                    border: showPointerStyle ? 3 : 0,
                     borderColor: 'primary.main',
                     transition: 'all 0.3s ease',
                   }}
@@ -265,7 +282,7 @@ export default function PlayerView() {
                       position: 'relative',
                     }}
                   >
-                    {isCurrent && (
+                    {showPointerStyle && (
                       <Chip
                         icon={<PlayArrowIcon />}
                         color="primary"
@@ -301,7 +318,7 @@ export default function PlayerView() {
                         textAlign: 'center',
                       }}
                     >
-                      #{index + 1}
+                      #{canonicalRankAmongVisible}
                     </Typography>
                   </Box>
                 </Paper>

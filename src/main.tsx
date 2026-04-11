@@ -5,7 +5,6 @@ import { Provider } from "react-redux";
 import App from "./App";
 import store from "./store/store";
 import { ThemeContextProvider } from "./contexts/ThemeContext";
-
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <ThemeContextProvider>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   Box,
   Button,
@@ -41,7 +41,9 @@ import PaletteIcon from "@mui/icons-material/Palette";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 import Brightness4Icon from "@mui/icons-material/Brightness4";
 import Brightness7Icon from "@mui/icons-material/Brightness7";
+import CheckIcon from "@mui/icons-material/Check";
 import { useThemeMode } from "../contexts/ThemeContext";
+import { rotateEntriesToCurrent } from "../utils/rotateEntriesToCurrent";
 
 import {
   DndContext,
@@ -58,8 +60,9 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 
-import { useSelector } from "react-redux";
-import type { RootState } from "../store/store";
+import { useDispatch, useSelector } from "react-redux";
+import type { RootState, AppDispatch } from "../store/store";
+import { setNextTurnPlacement } from "../store/roomSlice";
 import { getSocket } from "../services/socket";
 import { api } from "../services/api";
 import { copyToClipboard } from "../utils/copyToClipboard";
@@ -67,14 +70,14 @@ import { copyToClipboard } from "../utils/copyToClipboard";
 // Sortable item wrapper
 const SortableItem: React.FC<{
   id: string;
-  isCurrent: boolean;
+  showPointerStyle: boolean;
   hidden: boolean;
   color: string;
   textColor?: string;
   name: string;
   roll: number;
   onColorChange?: (id: string, color: string, textColor: string) => void;
-}> = ({ id, isCurrent, hidden, color, textColor, name, roll, onColorChange }) => {
+}> = ({ id, showPointerStyle, hidden, color, textColor, name, roll, onColorChange }) => {
   const { attributes, listeners, setNodeRef, transform, transition } =
     useSortable({ id });
   const style = {
@@ -103,12 +106,12 @@ const SortableItem: React.FC<{
       ref={setNodeRef}
       style={style}
       {...attributes}
-      elevation={isCurrent ? 8 : 2}
+      elevation={showPointerStyle ? 8 : 2}
       sx={{
         mb: 2,
         borderRadius: 3,
         overflow: 'hidden',
-        border: isCurrent ? 3 : 0,
+        border: showPointerStyle ? 3 : 0,
         borderColor: 'primary.main',
         position: 'relative',
         transition: 'all 0.3s ease',
@@ -155,7 +158,7 @@ const SortableItem: React.FC<{
             }}
           />
         </Box>
-        {isCurrent && (
+        {showPointerStyle && (
           <Chip
             icon={<PlayArrowIcon />}
             color="primary"
@@ -219,6 +222,7 @@ const SortableItem: React.FC<{
 };
 
 const GMView: React.FC = () => {
+  const dispatch = useDispatch<AppDispatch>();
   const entries = useSelector((state: RootState) => state.room.entries);
   const gmName = useSelector((state: RootState) => state.room.gmName);
   const current = useSelector(
@@ -243,7 +247,19 @@ const GMView: React.FC = () => {
   const [addMonsterExpanded, setAddMonsterExpanded] = useState(false);
   const [menuAnchorEl, setMenuAnchorEl] = useState<null | HTMLElement>(null);
   const { mode, toggleTheme } = useThemeMode();
+  const turnDisplayMode =
+    useSelector((state: RootState) => state.room.turnDisplayMode) ?? "pointer";
+  const nextTurnPlacement =
+    useSelector((state: RootState) => state.room.nextTurnPlacement) ?? "bottom";
   const menuOpen = Boolean(menuAnchorEl);
+
+  const displayEntries = useMemo(
+    () =>
+      turnDisplayMode === "rotation"
+        ? rotateEntriesToCurrent(entries, current)
+        : entries,
+    [turnDisplayMode, entries, current]
+  );
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -484,6 +500,70 @@ const GMView: React.FC = () => {
                 <ListItemText>{mode === 'light' ? 'Dark Mode' : 'Light Mode'}</ListItemText>
               </MenuItem>
               <Divider />
+              <MenuItem
+                onClick={() => {
+                  getSocket().emit("set-turn-display-mode", "pointer");
+                  handleMenuClose();
+                }}
+              >
+                <ListItemIcon>
+                  {turnDisplayMode === "pointer" ? (
+                    <CheckIcon fontSize="small" />
+                  ) : (
+                    <Box sx={{ width: 24 }} />
+                  )}
+                </ListItemIcon>
+                <ListItemText>Turn: Pointer</ListItemText>
+              </MenuItem>
+              <MenuItem
+                onClick={() => {
+                  getSocket().emit("set-turn-display-mode", "rotation");
+                  handleMenuClose();
+                }}
+              >
+                <ListItemIcon>
+                  {turnDisplayMode === "rotation" ? (
+                    <CheckIcon fontSize="small" />
+                  ) : (
+                    <Box sx={{ width: 24 }} />
+                  )}
+                </ListItemIcon>
+                <ListItemText>Turn: Rotation</ListItemText>
+              </MenuItem>
+              <Divider />
+              <MenuItem
+                onClick={() => {
+                  dispatch(setNextTurnPlacement("top"));
+                  getSocket().emit("set-next-turn-placement", "top");
+                  handleMenuClose();
+                }}
+              >
+                <ListItemIcon>
+                  {nextTurnPlacement === "top" ? (
+                    <CheckIcon fontSize="small" />
+                  ) : (
+                    <Box sx={{ width: 24 }} />
+                  )}
+                </ListItemIcon>
+                <ListItemText>Turn Button: Top</ListItemText>
+              </MenuItem>
+              <MenuItem
+                onClick={() => {
+                  dispatch(setNextTurnPlacement("bottom"));
+                  getSocket().emit("set-next-turn-placement", "bottom");
+                  handleMenuClose();
+                }}
+              >
+                <ListItemIcon>
+                  {nextTurnPlacement === "bottom" ? (
+                    <CheckIcon fontSize="small" />
+                  ) : (
+                    <Box sx={{ width: 24 }} />
+                  )}
+                </ListItemIcon>
+                <ListItemText>Turn order: Bottom</ListItemText>
+              </MenuItem>
+              <Divider />
               <MenuItem onClick={handleCopyLinkFromMenu}>
                 <ListItemIcon>
                   {copied ? <CheckCircleIcon fontSize="small" /> : <LinkIcon fontSize="small" />}
@@ -644,6 +724,27 @@ const GMView: React.FC = () => {
           </CardContent>
         </Card>
 
+        {nextTurnPlacement === "top" && (
+          <Box sx={{ mb: 3 }}>
+            <Button
+              variant="contained"
+              fullWidth
+              size="large"
+              onClick={handleNext}
+              disabled={entries.length === 0}
+              sx={{
+                py: 1.5,
+                fontSize: "1.1rem",
+                borderRadius: 3,
+                textTransform: "none",
+                fontWeight: 600,
+              }}
+            >
+              Next Turn
+            </Button>
+          </Box>
+        )}
+
         <Card elevation={4} sx={{ mb: 4, borderRadius: 3 }}>
           <CardContent sx={{ p: 3 }}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3, flexWrap: 'wrap', gap: 2 }}>
@@ -691,22 +792,27 @@ const GMView: React.FC = () => {
                 onDragEnd={handleDragEnd}
               >
                 <SortableContext
-                  items={entries.map((e) => e.id)}
+                  items={displayEntries.map((e) => e.id)}
                   strategy={verticalListSortingStrategy}
                 >
-                  {entries.map((e, idx) => (
-                    <SortableItem
-                      key={e.id}
-                      id={e.id}
-                      isCurrent={idx === current}
-                      hidden={e.hidden}
-                      color={e.color}
-                      textColor={e.textColor}
-                      name={e.name}
-                      roll={e.roll}
-                      onColorChange={handleColorChangeClick}
-                    />
-                  ))}
+                  {displayEntries.map((e) => {
+                    const currentEntryId = entries[current]?.id;
+                    const showPointerStyle =
+                      turnDisplayMode === "pointer" && e.id === currentEntryId;
+                    return (
+                      <SortableItem
+                        key={e.id}
+                        id={e.id}
+                        showPointerStyle={showPointerStyle}
+                        hidden={e.hidden}
+                        color={e.color}
+                        textColor={e.textColor}
+                        name={e.name}
+                        roll={e.roll}
+                        onColorChange={handleColorChangeClick}
+                      />
+                    );
+                  })}
                 </SortableContext>
               </DndContext>
             )}
@@ -932,22 +1038,24 @@ const GMView: React.FC = () => {
           </DialogActions>
         </Dialog>
 
-        <Button
-          variant="contained"
-          fullWidth
-          size="large"
-          onClick={handleNext}
-          disabled={entries.length === 0}
-          sx={{
-            py: 1.5,
-            fontSize: '1.1rem',
-            borderRadius: 3,
-            textTransform: 'none',
-            fontWeight: 600,
-          }}
-        >
-          Next Turn
-        </Button>
+        {nextTurnPlacement === "bottom" && (
+          <Button
+            variant="contained"
+            fullWidth
+            size="large"
+            onClick={handleNext}
+            disabled={entries.length === 0}
+            sx={{
+              py: 1.5,
+              fontSize: "1.1rem",
+              borderRadius: 3,
+              textTransform: "none",
+              fontWeight: 600,
+            }}
+          >
+            Next Turn
+          </Button>
+        )}
       </Box>
     </Container>
   );

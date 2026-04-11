@@ -10,13 +10,29 @@ export type Entry = {
   hidden: boolean;
 };
 
-type Room = { gmName: string; entries: Entry[]; currentTurnIndex: number };
+export type TurnDisplayMode = "pointer" | "rotation";
+
+export type NextTurnPlacement = "top" | "bottom";
+
+type Room = {
+  gmName: string;
+  entries: Entry[];
+  currentTurnIndex: number;
+  turnDisplayMode: TurnDisplayMode;
+  nextTurnPlacement: NextTurnPlacement;
+};
 
 export class RoomManager {
   private rooms: Record<string, Room> = {};
 
   createRoom(gmName: string): void {
-    this.rooms[gmName] = { gmName, entries: [], currentTurnIndex: 0 };
+    this.rooms[gmName] = {
+      gmName,
+      entries: [],
+      currentTurnIndex: 0,
+      turnDisplayMode: "pointer",
+      nextTurnPlacement: "bottom",
+    };
   }
 
   hasRoom(gmName: string): boolean {
@@ -24,7 +40,15 @@ export class RoomManager {
   }
 
   getRoomState(gmName: string): Room {
-    return this.rooms[gmName];
+    const room = this.rooms[gmName];
+    // Legacy in-memory rooms or bad payloads may omit these; normalize before emit
+    if (room.turnDisplayMode !== "pointer" && room.turnDisplayMode !== "rotation") {
+      room.turnDisplayMode = "pointer";
+    }
+    if (room.nextTurnPlacement !== "top" && room.nextTurnPlacement !== "bottom") {
+      room.nextTurnPlacement = "bottom";
+    }
+    return room;
   }
 
   getActiveGMs(): string[] {
@@ -69,6 +93,18 @@ export class RoomManager {
     const entries = this.rooms[gmName].entries;
     const [moved] = entries.splice(from, 1);
     entries.splice(to, 0, moved);
+  }
+
+  setTurnDisplayMode(gmName: string, mode: TurnDisplayMode): void {
+    const room = this.rooms[gmName];
+    if (!room) return;
+    room.turnDisplayMode = mode;
+  }
+
+  setNextTurnPlacement(gmName: string, placement: NextTurnPlacement): void {
+    const room = this.rooms[gmName];
+    if (!room) return;
+    room.nextTurnPlacement = placement;
   }
 
   nextTurn(gmName: string) {

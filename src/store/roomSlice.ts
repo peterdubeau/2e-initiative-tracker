@@ -1,6 +1,10 @@
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 
-type Entry = {
+export type TurnDisplayMode = "pointer" | "rotation";
+
+export type NextTurnPlacement = "top" | "bottom";
+
+export type Entry = {
   id: string;
   name: string;
   roll: number;
@@ -16,6 +20,8 @@ interface RoomState {
   isGM: boolean;
   entries: Entry[];
   currentTurnIndex: number;
+  turnDisplayMode: TurnDisplayMode;
+  nextTurnPlacement: NextTurnPlacement;
 }
 
 const initialState: RoomState = {
@@ -24,6 +30,8 @@ const initialState: RoomState = {
   isGM: false,
   entries: [],
   currentTurnIndex: 0,
+  turnDisplayMode: "pointer",
+  nextTurnPlacement: "bottom",
 };
 
 const roomSlice = createSlice({
@@ -41,8 +49,20 @@ const roomSlice = createSlice({
     setTurnIndex(state, action: PayloadAction<number>) {
       state.currentTurnIndex = action.payload;
     },
+    setTurnDisplayMode(state, action: PayloadAction<TurnDisplayMode>) {
+      state.turnDisplayMode = action.payload;
+    },
+    setNextTurnPlacement(state, action: PayloadAction<NextTurnPlacement>) {
+      state.nextTurnPlacement = action.payload;
+    },
   },
 });
 
-export const { setRoom, updateEntries, setTurnIndex } = roomSlice.actions;
+export const {
+  setRoom,
+  updateEntries,
+  setTurnIndex,
+  setTurnDisplayMode,
+  setNextTurnPlacement,
+} = roomSlice.actions;
 export default roomSlice.reducer;

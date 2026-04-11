@@ -3,7 +3,14 @@ import React, { useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useDispatch } from "react-redux";
 import type { AppDispatch } from "../store/store";
-import { setRoom, updateEntries, setTurnIndex } from "../store/roomSlice";
+import {
+  setRoom,
+  updateEntries,
+  setTurnIndex,
+  setTurnDisplayMode,
+  setNextTurnPlacement,
+  type Entry,
+} from "../store/roomSlice";
 import { connect } from "../services/socket";
 import GMView from "./GMView";
 import PlayerView from "./PlayerView";
@@ -38,9 +45,21 @@ const Room: React.FC = () => {
     socket.off("kicked");
     
     // Listen for updates
-    const handleRoomUpdate = (state: any) => {
+    const handleRoomUpdate = (state: {
+      entries: Entry[];
+      currentTurnIndex: number;
+      turnDisplayMode?: string;
+      nextTurnPlacement?: string;
+    }) => {
       dispatch(updateEntries(state.entries));
       dispatch(setTurnIndex(state.currentTurnIndex));
+      // Only apply when present — otherwise undefined would clobber to defaults
+      if (state.turnDisplayMode === "pointer" || state.turnDisplayMode === "rotation") {
+        dispatch(setTurnDisplayMode(state.turnDisplayMode));
+      }
+      if (state.nextTurnPlacement === "top" || state.nextTurnPlacement === "bottom") {
+        dispatch(setNextTurnPlacement(state.nextTurnPlacement));
+      }
     };
     socket.on("room-update", handleRoomUpdate);
 

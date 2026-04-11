@@ -27,8 +27,8 @@ export function connect(gmName: string, isGM: boolean) {
 
     console.log(`Creating new socket for ${gmName} (${isGM ? 'GM' : 'Player'})`);
     socket = io(SOCKET_URL, {
-      // server code reads `socket.handshake.query.gmName` and `.gm`
-      query: { gmName: gmName, gm: isGM },
+      // server reads handshake.query.gm; must be string (boolean is unreliable)
+      query: { gmName: gmName, gm: isGM ? "true" : "false" },
     });
     
     currentGmName = gmName;
