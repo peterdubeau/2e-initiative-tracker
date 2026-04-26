@@ -115,17 +115,8 @@ export class RoomManager {
     const total = entries.length;
     if (total === 0) return;
 
-    // Try each subsequent index until we hit a non-hidden entry
-    let nextIdx = room.currentTurnIndex;
-    for (let i = 1; i <= total; i++) {
-      const candidate = (room.currentTurnIndex + i) % total;
-      if (!entries[candidate].hidden) {
-        nextIdx = candidate;
-        break;
-      }
-    }
-
-    room.currentTurnIndex = nextIdx;
+    // Advance through every creature, including hidden ones.
+    room.currentTurnIndex = (room.currentTurnIndex + 1) % total;
   }
 
   toggleHidden(gmName: string, id: string) {

@@ -28,7 +28,10 @@ import Brightness7Icon from "@mui/icons-material/Brightness7";
 import { useAppSelector } from "../store/store";
 import { getSocket } from "../services/socket";
 import { useThemeMode } from "../contexts/ThemeContext";
-import { rotateVisibleEntriesToCurrent } from "../utils/rotateEntriesToCurrent";
+import {
+  getPlayerVisibleTurnIndex,
+  rotateVisibleEntriesToCurrent,
+} from "../utils/rotateEntriesToCurrent";
 import { copyToClipboard } from "../utils/copyToClipboard";
 
 export default function PlayerView() {
@@ -48,8 +51,12 @@ export default function PlayerView() {
   );
   const menuOpen = Boolean(menuAnchorEl);
 
-  // 1. Determine which entry is "current" by id
-  const currentEntryId = entries[currentTurnIndex]?.id;
+  // Determine the player-visible current entry id (hidden turns stay concealed).
+  const playerVisibleTurnIndex = getPlayerVisibleTurnIndex(
+    entries,
+    currentTurnIndex
+  );
+  const currentEntryId = entries[playerVisibleTurnIndex]?.id;
 
   // 2. Filter out hidden entries for display
   const visibleEntries = entries.filter((entry) => !entry.hidden);
