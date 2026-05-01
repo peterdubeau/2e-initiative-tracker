@@ -155,7 +155,7 @@ const gmCredentials = loadGMCredentials();
 // Validate GM credentials
 function validateGMCredentials(name: string, password: string): boolean {
   const gm = gmCredentials.find(
-    (g) => g.name === name && g.Password === password
+    (g) => g.name === name && g.Password === password,
   );
   return Boolean(gm);
 }
