@@ -1,0 +1,215 @@
+{
+  "name": "Trolls",
+  "Password": "boobs",
+  "encounters": [
+    {
+      "name": "Barbican",
+      "encounter": [
+        {
+          "name": "Troll 1",
+          "color": "#d81313",
+          "roll": 12,
+          "hidden": true
+        },
+        {
+          "name": "Hobgoblin 1",
+          "color": "#ec5555",
+          "roll": 27,
+          "hidden": true
+        },
+        {
+          "name": "Hobgoblin 2",
+          "color": "#ee1b1b",
+          "roll": 25,
+          "hidden": true
+        }
+      ]
+    },
+    {
+      "name": "Great Hall / Barracks / Troll Hound Kennel / Kargadd",
+      "encounter": [
+        {
+          "name": "Troll 1",
+          "color": "#dd1313",
+          "roll": 16,
+          "hidden": true
+        },
+        {
+          "name": "Troll 2",
+          "color": "#e30d0d",
+          "roll": 22,
+          "hidden": true
+        },
+        {
+          "name": "Trollhound",
+          "color": "#e71313",
+          "roll": 14,
+          "hidden": true
+        },
+        {
+          "name": "Trollhound 2",
+          "color": "#e70d0d",
+          "roll": 17,
+          "hidden": true
+        },
+        {
+          "name": "Trollhound 3",
+          "color": "#fd0808",
+          "roll": 18,
+          "hidden": true
+        },
+        {
+          "name": "Kargadd",
+          "color": "#ea0606",
+          "roll": 28,
+          "hidden": true
+        }
+      ]
+    },
+    {
+      "name": "Watchtower",
+      "encounter": [
+        {
+          "name": "Harpy 1",
+          "color": "#ef0606",
+          "roll": 22
+        },
+        {
+          "name": "Harpy 2",
+          "color": "#e20808",
+          "roll": 28
+        }
+      ]
+    },
+    {
+      "name": "Leucrotta Den",
+      "encounter": [
+        {
+          "name": "Leucrotta 1",
+          "color": "#dd1313",
+          "roll": 23
+        },
+        {
+          "name": "Leucrotta 2",
+          "color": "#fb0909",
+          "roll": 32
+        }
+      ]
+    },
+    {
+      "name": "Nagrundi's room",
+      "encounter": [
+        {
+          "name": "Nagrundi",
+          "color": "#e60505",
+          "roll": 38
+        }
+      ]
+    },
+    {
+      "name": "Throne Room",
+      "encounter": [
+        {
+          "name": "Harkulga ",
+          "color": "#e60000",
+          "roll": 18
+        },
+        {
+          "name": "Gurija",
+          "color": "#f90606",
+          "roll": 28
+        }
+      ]
+    },
+    {
+      "name": "EVERYTHING WENT WRONG",
+      "encounter": [
+        {
+          "name": "Troll 1",
+          "color": "#d81313",
+          "roll": 12
+        },
+        {
+          "name": "Hobgoblin 1",
+          "color": "#ec5555",
+          "roll": 27
+        },
+        {
+          "name": "Hobgoblin 2",
+          "color": "#ee1b1b",
+          "roll": 25
+        },
+        {
+          "name": "Troll 3",
+          "color": "#dd1313",
+          "roll": 16,
+          "hidden": false
+        },
+        {
+          "name": "Troll 2",
+          "color": "#e30d0d",
+          "roll": 22,
+          "hidden": false
+        },
+        {
+          "name": "Trollhound 1",
+          "color": "#e71313",
+          "roll": 14,
+          "hidden": false
+        },
+        {
+          "name": "Trollhound 2",
+          "color": "#e70d0d",
+          "roll": 17,
+          "hidden": false
+        },
+        {
+          "name": "Trollhound 3",
+          "color": "#fd0808",
+          "roll": 18,
+          "hidden": false
+        },
+        {
+          "name": "Kargadd",
+          "color": "#ea0606",
+          "roll": 28
+        },
+        {
+          "name": "Harpy 1",
+          "color": "#ef0606",
+          "roll": 22
+        },
+        {
+          "name": "Harpy 2",
+          "color": "#e20808",
+          "roll": 28
+        },
+        {
+          "name": "Leucrotta 1",
+          "color": "#dd1313",
+          "roll": 23
+        },
+        {
+          "name": "Leucrotta 2",
+          "color": "#000000",
+          "roll": 32
+        },
+        {
+          "name": "Nagrundi",
+          "color": "#000000",
+          "roll": 38
+        },
+        {
+          "name": "Harkulga ",
+          "color": "#000000",
+          "roll": 18
+        },
+        {
+          "name": "Gurija",
+          "color": "#000000",
+          "roll": 28
+        }
+      ]
+    }
+  ]
+}
