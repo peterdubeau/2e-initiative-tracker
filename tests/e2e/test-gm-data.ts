@@ -10,18 +10,24 @@ export const TEST_GM_DATA = {
         {
           name: "Bad Guy 1",
           color: "#000000",
-          roll: 17
+          roll: 17,
+          hp: 40,
+          maxHp: 40
         },
         {
           name: "Bad Guy 2",
           color: "#892424",
           hidden: false,
-          roll: 3
+          roll: 3,
+          hp: 25,
+          maxHp: 30
         },
         {
           name: "Environmental hazzard",
           color: "#3255e2",
-          roll: 20
+          roll: 20,
+          hp: 10,
+          maxHp: 10
         }
       ]
     },
@@ -30,16 +36,22 @@ export const TEST_GM_DATA = {
       encounter: [
         {
           name: "BG 1",
-          color: "#000000"
+          color: "#000000",
+          hp: 20,
+          maxHp: 20
         },
         {
           name: "BG 2",
-          color: "#000000"
+          color: "#000000",
+          hp: 15,
+          maxHp: 15
         },
         {
           name: "BG 3",
           color: "#000000",
-          hidden: true
+          hidden: true,
+          hp: 50,
+          maxHp: 50
         }
       ]
     }

@@ -12,6 +12,10 @@ export type Entry = {
   textColor?: string;
   isMonster: boolean;
   hidden: boolean;
+  /** Current HP — shown only in GM view */
+  hp?: number;
+  /** Max HP — shown only in GM view */
+  maxHp?: number;
 };
 
 interface RoomState {

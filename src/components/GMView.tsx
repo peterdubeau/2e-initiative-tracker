@@ -76,14 +76,44 @@ const SortableItem: React.FC<{
   textColor?: string;
   name: string;
   roll: number;
+  isMonster?: boolean;
+  hp?: number;
+  maxHp?: number;
   onColorChange?: (id: string, color: string, textColor: string) => void;
-}> = ({ id, showPointerStyle, hidden, color, textColor, name, roll, onColorChange }) => {
+  onHpChange?: (id: string, hp: number | undefined, maxHp: number | undefined) => void;
+}> = ({
+  id,
+  showPointerStyle,
+  hidden,
+  color,
+  textColor,
+  name,
+  roll,
+  isMonster,
+  hp,
+  maxHp,
+  onColorChange,
+  onHpChange,
+}) => {
   const { attributes, listeners, setNodeRef, transform, transition } =
     useSortable({ id });
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
   };
+
+  const [hpDraft, setHpDraft] = useState(hp !== undefined ? String(hp) : "");
+  const [maxHpDraft, setMaxHpDraft] = useState(
+    maxHp !== undefined ? String(maxHp) : ""
+  );
+
+  useEffect(() => {
+    setHpDraft(hp !== undefined ? String(hp) : "");
+  }, [hp]);
+
+  useEffect(() => {
+    setMaxHpDraft(maxHp !== undefined ? String(maxHp) : "");
+  }, [maxHp]);
 
   const socket = getSocket();
   const handleRemove = (e: React.MouseEvent) => {
@@ -99,6 +129,53 @@ const SortableItem: React.FC<{
     if (onColorChange) {
       onColorChange(id, color, textColor || '#ffffff');
     }
+  };
+
+  const commitHp = () => {
+    if (!onHpChange) return;
+    const parsedHp = hpDraft.trim() === "" ? undefined : parseInt(hpDraft, 10);
+    const parsedMax =
+      maxHpDraft.trim() === "" ? undefined : parseInt(maxHpDraft, 10);
+    const nextHp =
+      parsedHp !== undefined && !Number.isNaN(parsedHp) ? parsedHp : undefined;
+    const nextMax =
+      parsedMax !== undefined && !Number.isNaN(parsedMax) ? parsedMax : undefined;
+    if (nextHp === hp && nextMax === maxHp) return;
+    onHpChange(id, nextHp, nextMax);
+  };
+
+  const stopDragPropagation = {
+    onPointerDown: (e: React.SyntheticEvent) => e.stopPropagation(),
+    onMouseDown: (e: React.SyntheticEvent) => e.stopPropagation(),
+    onTouchStart: (e: React.SyntheticEvent) => e.stopPropagation(),
+    onClick: (e: React.SyntheticEvent) => e.stopPropagation(),
+    onKeyDown: (e: React.KeyboardEvent) => {
+      e.stopPropagation();
+      if (e.key === "Enter") {
+        (e.target as HTMLInputElement).blur();
+      }
+    },
+  };
+
+  const fieldSx = {
+    width: 56,
+    "& .MuiInputBase-input": {
+      py: 0.5,
+      px: 0.75,
+      textAlign: "center" as const,
+      color: hidden ? "text.secondary" : textColor || "white",
+      fontWeight: 600,
+      fontSize: "0.85rem",
+    },
+    "& .MuiOutlinedInput-notchedOutline": {
+      borderColor: "rgba(255, 255, 255, 0.4)",
+    },
+    "&:hover .MuiOutlinedInput-notchedOutline": {
+      borderColor: "rgba(255, 255, 255, 0.7)",
+    },
+    "& .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline": {
+      borderColor: "white",
+    },
   };
 
   return (
@@ -147,16 +224,48 @@ const SortableItem: React.FC<{
           <Typography variant="h6" sx={{ fontWeight: 600 }}>
             {name}
           </Typography>
-          <Chip
-            label={`Initiative: ${roll}`}
-            size="small"
-            sx={{
-              mt: 0.5,
-              backgroundColor: 'rgba(255, 255, 255, 0.3)',
-              color: hidden ? 'text.secondary' : (textColor || 'white'),
-              fontWeight: 600,
-            }}
-          />
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1, mt: 0.5, flexWrap: "wrap" }}>
+            <Chip
+              label={`Initiative: ${roll}`}
+              size="small"
+              sx={{
+                backgroundColor: 'rgba(255, 255, 255, 0.3)',
+                color: hidden ? 'text.secondary' : (textColor || 'white'),
+                fontWeight: 600,
+              }}
+            />
+            {isMonster && (
+              <Box
+                sx={{ display: "flex", alignItems: "center", gap: 0.5 }}
+                {...stopDragPropagation}
+              >
+                <Typography variant="caption" sx={{ opacity: 0.85, fontWeight: 600 }}>
+                  HP
+                </Typography>
+                <TextField
+                  size="small"
+                  type="number"
+                  value={hpDraft}
+                  onChange={(e) => setHpDraft(e.target.value)}
+                  onBlur={commitHp}
+                  inputProps={{ "aria-label": "Current HP" }}
+                  sx={fieldSx}
+                />
+                <Typography variant="body2" sx={{ opacity: 0.8, fontWeight: 600 }}>
+                  /
+                </Typography>
+                <TextField
+                  size="small"
+                  type="number"
+                  value={maxHpDraft}
+                  onChange={(e) => setMaxHpDraft(e.target.value)}
+                  onBlur={commitHp}
+                  inputProps={{ "aria-label": "Max HP" }}
+                  sx={fieldSx}
+                />
+              </Box>
+            )}
+          </Box>
         </Box>
         {showPointerStyle && (
           <Chip
@@ -231,6 +340,8 @@ const GMView: React.FC = () => {
 
   const [monsterName, setMonsterName] = useState("");
   const [monsterRoll, setMonsterRoll] = useState<string>("");
+  const [monsterHp, setMonsterHp] = useState<string>("");
+  const [monsterMaxHp, setMonsterMaxHp] = useState<string>("");
   const [monsterColor, setMonsterColor] = useState("#888888");
   const [monsterHidden, setMonsterHidden] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -285,16 +396,47 @@ const GMView: React.FC = () => {
 
   const handleAddMonster = () => {
     const rollValue = parseInt(monsterRoll, 10) || 0;
+    const parsedHp = monsterHp.trim() === "" ? undefined : parseInt(monsterHp, 10);
+    const parsedMaxHp =
+      monsterMaxHp.trim() === "" ? undefined : parseInt(monsterMaxHp, 10);
     const socket = getSocket();
     socket.emit("add-monster", {
       name: monsterName,
       roll: rollValue,
       color: monsterColor,
       hidden: monsterHidden,
+      ...(parsedHp !== undefined && !Number.isNaN(parsedHp) ? { hp: parsedHp } : {}),
+      ...(parsedMaxHp !== undefined && !Number.isNaN(parsedMaxHp)
+        ? { maxHp: parsedMaxHp }
+        : {}),
     });
     setMonsterName("");
     setMonsterRoll("");
+    setMonsterHp("");
+    setMonsterMaxHp("");
     setMonsterHidden(false);
+  };
+
+  const handleHpChange = (
+    id: string,
+    hp: number | undefined,
+    maxHp: number | undefined
+  ) => {
+    const entry = entries.find((e) => e.id === id);
+    if (!entry) return;
+    const socket = getSocket();
+    const updated = { ...entry };
+    if (hp === undefined) {
+      delete updated.hp;
+    } else {
+      updated.hp = hp;
+    }
+    if (maxHp === undefined) {
+      delete updated.maxHp;
+    } else {
+      updated.maxHp = maxHp;
+    }
+    socket.emit("update-entry", updated);
   };
 
   const handleNext = () => {
@@ -654,6 +796,24 @@ const GMView: React.FC = () => {
                     inputProps={{ min: 0 }}
                     sx={{ mb: 1 }}
                   />
+                  <Box display="flex" gap={2} sx={{ mb: 1 }}>
+                    <TextField
+                      label="HP"
+                      type="number"
+                      value={monsterHp}
+                      onChange={(e) => setMonsterHp(e.target.value)}
+                      fullWidth
+                      inputProps={{ min: 0 }}
+                    />
+                    <TextField
+                      label="Max HP"
+                      type="number"
+                      value={monsterMaxHp}
+                      onChange={(e) => setMonsterMaxHp(e.target.value)}
+                      fullWidth
+                      inputProps={{ min: 0 }}
+                    />
+                  </Box>
                   <Box
                     display="flex"
                     alignItems="center"
@@ -809,7 +969,11 @@ const GMView: React.FC = () => {
                         textColor={e.textColor}
                         name={e.name}
                         roll={e.roll}
+                        isMonster={e.isMonster}
+                        hp={e.hp}
+                        maxHp={e.maxHp}
                         onColorChange={handleColorChangeClick}
+                        onHpChange={handleHpChange}
                       />
                     );
                   })}

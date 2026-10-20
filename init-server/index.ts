@@ -630,9 +630,11 @@ io.on("connection", (socket: Socket) => {
           roll: roll,
           color: color,
           hidden: hidden,
+          ...(typeof monster.hp === "number" ? { hp: monster.hp } : {}),
+          ...(typeof monster.maxHp === "number" ? { maxHp: monster.maxHp } : {}),
         });
         
-        console.log(`Added monster: ${monster.name}, roll: ${roll}, color: ${color}, hidden: ${hidden}`);
+        console.log(`Added monster: ${monster.name}, roll: ${roll}, color: ${color}, hidden: ${hidden}, hp: ${monster.hp}, maxHp: ${monster.maxHp}`);
       });
       
       // Emit room update
