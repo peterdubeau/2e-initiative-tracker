@@ -42,6 +42,8 @@ import MoreVertIcon from "@mui/icons-material/MoreVert";
 import Brightness4Icon from "@mui/icons-material/Brightness4";
 import Brightness7Icon from "@mui/icons-material/Brightness7";
 import CheckIcon from "@mui/icons-material/Check";
+import LockIcon from "@mui/icons-material/Lock";
+import LockOpenIcon from "@mui/icons-material/LockOpen";
 import { useThemeMode } from "../contexts/ThemeContext";
 import { rotateEntriesToCurrent } from "../utils/rotateEntriesToCurrent";
 
@@ -102,6 +104,7 @@ const SortableItem: React.FC<{
     transition,
   };
 
+  const [hpLocked, setHpLocked] = useState(true);
   const [hpDraft, setHpDraft] = useState(hp !== undefined ? String(hp) : "");
   const [maxHpDraft, setMaxHpDraft] = useState(
     maxHp !== undefined ? String(maxHp) : ""
@@ -136,10 +139,16 @@ const SortableItem: React.FC<{
     const parsedHp = hpDraft.trim() === "" ? undefined : parseInt(hpDraft, 10);
     const parsedMax =
       maxHpDraft.trim() === "" ? undefined : parseInt(maxHpDraft, 10);
-    const nextHp =
+    let nextHp =
       parsedHp !== undefined && !Number.isNaN(parsedHp) ? parsedHp : undefined;
     const nextMax =
       parsedMax !== undefined && !Number.isNaN(parsedMax) ? parsedMax : undefined;
+    if (nextHp !== undefined && nextMax !== undefined && nextHp > nextMax) {
+      nextHp = nextMax;
+    }
+    // Re-sync drafts in case clamping left them showing a stale value
+    setHpDraft(nextHp !== undefined ? String(nextHp) : "");
+    setMaxHpDraft(nextMax !== undefined ? String(nextMax) : "");
     if (nextHp === hp && nextMax === maxHp) return;
     onHpChange(id, nextHp, nextMax);
   };
@@ -248,7 +257,7 @@ const SortableItem: React.FC<{
                   value={hpDraft}
                   onChange={(e) => setHpDraft(e.target.value)}
                   onBlur={commitHp}
-                  inputProps={{ "aria-label": "Current HP" }}
+                  inputProps={{ "aria-label": "Current HP", max: maxHp }}
                   sx={fieldSx}
                 />
                 <Typography variant="body2" sx={{ opacity: 0.8, fontWeight: 600 }}>
@@ -260,9 +269,18 @@ const SortableItem: React.FC<{
                   value={maxHpDraft}
                   onChange={(e) => setMaxHpDraft(e.target.value)}
                   onBlur={commitHp}
+                  disabled={hpLocked}
                   inputProps={{ "aria-label": "Max HP" }}
                   sx={fieldSx}
                 />
+                <IconButton
+                  size="small"
+                  aria-label={hpLocked ? "Unlock max HP" : "Lock max HP"}
+                  onClick={() => setHpLocked((l) => !l)}
+                  sx={{ color: hidden ? "text.secondary" : textColor || "white" }}
+                >
+                  {hpLocked ? <LockIcon fontSize="small" /> : <LockOpenIcon fontSize="small" />}
+                </IconButton>
               </Box>
             )}
           </Box>
@@ -396,9 +414,17 @@ const GMView: React.FC = () => {
 
   const handleAddMonster = () => {
     const rollValue = parseInt(monsterRoll, 10) || 0;
-    const parsedHp = monsterHp.trim() === "" ? undefined : parseInt(monsterHp, 10);
+    let parsedHp = monsterHp.trim() === "" ? undefined : parseInt(monsterHp, 10);
     const parsedMaxHp =
       monsterMaxHp.trim() === "" ? undefined : parseInt(monsterMaxHp, 10);
+    if (
+      parsedHp !== undefined &&
+      parsedMaxHp !== undefined &&
+      !Number.isNaN(parsedMaxHp) &&
+      parsedHp > parsedMaxHp
+    ) {
+      parsedHp = parsedMaxHp;
+    }
     const socket = getSocket();
     socket.emit("add-monster", {
       name: monsterName,

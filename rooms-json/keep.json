@@ -1,0 +1,63 @@
+{
+  "name": "Keep",
+  "Password": "Drugs",
+  "encounters": [
+    {
+      "name": "G4. North East Tower",
+      "encounter": [
+        {
+          "name": "Rat Swarm 1",
+          "color": "#e71313",
+          "roll": 19,
+          "maxHp": 42
+        },
+        {
+          "name": "Rat Swarm 2",
+          "color": "#f10e0e",
+          "roll": 16,
+          "maxHp": 42
+        }
+      ]
+    },
+    {
+      "name": "Southeast Tower",
+      "encounter": [
+        {
+          "name": "R. Giggerdly",
+          "color": "#e60a0a",
+          "roll": 28,
+          "hidden": true,
+          "maxHp": 70
+        }
+      ]
+    },
+    {
+      "name": "Northwest Tower",
+      "encounter": [
+        {
+          "name": "Assassin Vine",
+          "color": "#ff0000",
+          "roll": 19,
+          "hidden": true,
+          "maxHp": 68
+        },
+        {
+          "name": "Teorlian",
+          "color": "#e50606",
+          "roll": 80
+        }
+      ]
+    },
+    {
+      "name": "G8. The dancing lady",
+      "encounter": [
+        {
+          "name": "The dancing lady",
+          "color": "#e20808",
+          "roll": 36,
+          "maxHp": 135
+        }
+      ]
+    }
+  ]
+}

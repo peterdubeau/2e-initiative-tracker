@@ -9,19 +9,22 @@
           "name": "Troll 1",
           "color": "#d81313",
           "roll": 12,
-          "hidden": true
+          "hidden": true,
+          "maxHp": 125
         },
         {
           "name": "Hobgoblin 1",
           "color": "#ec5555",
           "roll": 27,
-          "hidden": true
+          "hidden": true,
+          "maxHp": 50
         },
         {
           "name": "Hobgoblin 2",
           "color": "#ee1b1b",
           "roll": 25,
-          "hidden": true
+          "hidden": true,
+          "maxHp": 50
         }
       ]
     },
@@ -32,37 +35,43 @@
           "name": "Troll 1",
           "color": "#dd1313",
           "roll": 16,
-          "hidden": true
+          "hidden": true,
+          "maxHp": 125
         },
         {
           "name": "Troll 2",
           "color": "#e30d0d",
           "roll": 22,
-          "hidden": true
+          "hidden": true,
+          "maxHp": 125
         },
         {
           "name": "Trollhound",
           "color": "#e71313",
           "roll": 14,
-          "hidden": true
+          "hidden": true,
+          "maxHp": 65
         },
         {
           "name": "Trollhound 2",
           "color": "#e70d0d",
           "roll": 17,
-          "hidden": true
+          "hidden": true,
+          "maxHp": 65
         },
         {
           "name": "Trollhound 3",
           "color": "#fd0808",
           "roll": 18,
-          "hidden": true
+          "hidden": true,
+          "maxHp": 65
         },
         {
           "name": "Kargadd",
           "color": "#ea0606",
           "roll": 28,
-          "hidden": true
+          "hidden": true,
+          "maxHp": 115
         }
       ]
     },
@@ -72,12 +81,14 @@
         {
           "name": "Harpy 1",
           "color": "#ef0606",
-          "roll": 22
+          "roll": 22,
+          "maxHp": 75
         },
         {
           "name": "Harpy 2",
           "color": "#e20808",
-          "roll": 28
+          "roll": 28,
+          "maxHp": 75
         }
       ]
     },
@@ -87,12 +98,14 @@
         {
           "name": "Leucrotta 1",
           "color": "#dd1313",
-          "roll": 23
+          "roll": 23,
+          "maxHp": 85
         },
         {
           "name": "Leucrotta 2",
           "color": "#fb0909",
-          "roll": 32
+          "roll": 32,
+          "maxHp": 85
         }
       ]
     },
@@ -102,7 +115,9 @@
         {
           "name": "Nagrundi",
           "color": "#e60505",
-          "roll": 38
+          "roll": 38,
+          "maxHp": 190
+          
         }
       ]
     },
@@ -110,14 +125,16 @@
       "name": "Throne Room",
       "encounter": [
         {
-          "name": "Harkulga ",
+          "name": "Harkulga",
           "color": "#e60000",
-          "roll": 18
+          "roll": 18,
+          "maxHp": 190
         },
         {
           "name": "Gurija",
           "color": "#f90606",
-          "roll": 28
+          "roll": 28,
+          "maxHp": 95
         }
       ]
     },
@@ -127,62 +144,73 @@
         {
           "name": "Troll 1",
           "color": "#d81313",
-          "roll": 12
+          "roll": 12,
+          "maxHp": 125
         },
         {
           "name": "Hobgoblin 1",
           "color": "#ec5555",
-          "roll": 27
+          "roll": 27,
+          "maxHp": 50
         },
         {
           "name": "Hobgoblin 2",
           "color": "#ee1b1b",
-          "roll": 25
+          "roll": 25,
+          "maxHp": 50
         },
         {
           "name": "Troll 3",
           "color": "#dd1313",
           "roll": 16,
-          "hidden": false
+          "hidden": false,
+          "maxHp": 125
         },
         {
           "name": "Troll 2",
           "color": "#e30d0d",
           "roll": 22,
-          "hidden": false
+          "hidden": false,
+          "maxHp": 125
         },
         {
           "name": "Trollhound 1",
           "color": "#e71313",
           "roll": 14,
-          "hidden": false
+          "hidden": false,
+          "maxHp": 65
         },
         {
           "name": "Trollhound 2",
           "color": "#e70d0d",
           "roll": 17,
-          "hidden": false
+          "hidden": false,
+          "maxHp": 65
         },
         {
           "name": "Trollhound 3",
           "color": "#fd0808",
           "roll": 18,
-          "hidden": false
+          "hidden": false,
+          "maxHp": 65
         },
         {
           "name": "Kargadd",
           "color": "#ea0606",
-          "roll": 28
+          "roll": 28,
+          "maxHp": 115
         },
         {
           "name": "Harpy 1",
           "color": "#ef0606",
-          "roll": 22
+          "roll": 22,
+          "maxHp": 75
         },
         {
           "name": "Harpy 2",
           "color": "#e20808",
-          "roll": 28
+          "roll": 28,
+          "maxHp": 75
         },
         {
           "name": "Leucrotta 1",

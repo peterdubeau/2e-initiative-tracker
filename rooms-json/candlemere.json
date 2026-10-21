@@ -1,0 +1,88 @@
+{
+  "name": "Candlemere",
+  "Password": "beer",
+  "encounters": [
+    {
+      "name": "E1. Shore",
+      "encounter": [
+        {
+          "name": "Shambler 2",
+          "color": "#f70808",
+          "roll": 19,
+          "maxHp": 120
+        },
+        {
+          "name": "Shambler 2",
+          "color": "#f41010",
+          "roll": 25,
+          "maxHp": 120
+        }
+      ]
+    },
+    {
+      "name": "E3. Tower",
+      "encounter": [
+        {
+          "name": "Will-o-wisp",
+          "color": "#f41010",
+          "roll": 31,
+          "maxHp": 50
+        }
+      ]
+    },
+    {
+      "name": "F3. Statue Chamber ",
+      "encounter": [
+        {
+          "name": "Giant Animated Statue",
+          "color": "#eb0000",
+          "hidden": true,
+          "roll": 33,
+          "maxHp": 100
+        }
+      ]
+    },
+    {
+      "name": "F5. Chamber of Arches",
+      "encounter": [
+        {
+          "name": "Shadow 1",
+          "color": "#e40707",
+          "roll": 18,
+          "maxHp": 40
+
+        },
+        {
+          "name": "Shadow 2",
+          "color": "#ff1f1f",
+          "roll": 15,
+          "maxHp": 40
+        },
+        {
+          "name": "Shadow 3",
+          "color": "#d30909",
+          "roll": 25,
+          "maxHp": 40
+        }
+      ]
+    },
+    {
+      "name": "F6. Chamber of the Spiral Seal",
+      "encounter": [
+        {
+          "name": "Gibbering Mouther 1",
+          "color": "#f41010",
+          "roll": 33,
+          "hidden": true,
+          "maxHp": 120
+        },
+        {
+          "name": "Gibbering Mouther 2",
+          "color": "#e00b0b",
+          "roll": 31,
+          "maxHp": 120
+        }
+      ]
+    }
+  ]
+}
