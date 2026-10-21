@@ -12,6 +12,8 @@ export type Entry = {
   hp?: number;
   /** Max HP — shown only in GM view */
   maxHp?: number;
+  /** Reaction available (undefined means available) — GM sees all; players see only non-monsters */
+  reaction?: boolean;
 };
 
 export type TurnDisplayMode = "pointer" | "rotation";
@@ -121,6 +123,9 @@ export class RoomManager {
 
     // Advance through every creature, including hidden ones.
     room.currentTurnIndex = (room.currentTurnIndex + 1) % total;
+
+    // An entry's reaction refreshes when its turn comes up
+    entries[room.currentTurnIndex].reaction = true;
   }
 
   toggleHidden(gmName: string, id: string) {

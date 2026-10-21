@@ -81,6 +81,8 @@ const SortableItem: React.FC<{
   isMonster?: boolean;
   hp?: number;
   maxHp?: number;
+  reaction?: boolean;
+  onReactionChange?: (id: string, reaction: boolean) => void;
   onColorChange?: (id: string, color: string, textColor: string) => void;
   onHpChange?: (id: string, hp: number | undefined, maxHp: number | undefined) => void;
 }> = ({
@@ -94,6 +96,8 @@ const SortableItem: React.FC<{
   isMonster,
   hp,
   maxHp,
+  reaction,
+  onReactionChange,
   onColorChange,
   onHpChange,
 }) => {
@@ -283,6 +287,20 @@ const SortableItem: React.FC<{
                 </IconButton>
               </Box>
             )}
+            <Box {...stopDragPropagation}>
+                <FormControlLabel
+                  sx={{ ml: 0.5, mr: 0 }}
+                  control={
+                    <Checkbox
+                      size="small"
+                      checked={reaction !== false}
+                      onChange={(e) => onReactionChange?.(id, e.target.checked)}
+                      sx={{ color: "inherit", "&.Mui-checked": { color: "inherit" }, p: 0.5 }}
+                    />
+                  }
+                  label={<Typography variant="caption" sx={{ fontWeight: 600 }}>Reaction</Typography>}
+                />
+            </Box>
           </Box>
         </Box>
         {showPointerStyle && (
@@ -463,6 +481,12 @@ const GMView: React.FC = () => {
       updated.maxHp = maxHp;
     }
     socket.emit("update-entry", updated);
+  };
+
+  const handleReactionChange = (id: string, reaction: boolean) => {
+    const entry = entries.find((e) => e.id === id);
+    if (!entry) return;
+    getSocket().emit("update-entry", { ...entry, reaction });
   };
 
   const handleNext = () => {
@@ -998,6 +1022,8 @@ const GMView: React.FC = () => {
                         isMonster={e.isMonster}
                         hp={e.hp}
                         maxHp={e.maxHp}
+                        reaction={e.reaction}
+                        onReactionChange={handleReactionChange}
                         onColorChange={handleColorChangeClick}
                         onHpChange={handleHpChange}
                       />

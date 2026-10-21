@@ -1,5 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { 
+  Checkbox,
+  FormControlLabel,
   Box, 
   Typography, 
   Paper, 
@@ -305,16 +307,41 @@ export default function PlayerView() {
                       <Typography variant="h6" sx={{ fontWeight: 600 }}>
                         {entry.name}
                       </Typography>
-                    <Chip
-                      label={`Initiative: ${entry.roll}`}
-                      size="small"
-                      sx={{
-                        mt: 0.5,
-                        backgroundColor: 'rgba(255, 255, 255, 0.3)',
-                        color: entry.textColor || 'white',
-                        fontWeight: 600,
-                      }}
-                    />
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5, flexWrap: 'wrap' }}>
+                      <Chip
+                        label={`Initiative: ${entry.roll}`}
+                        size="small"
+                        sx={{
+                          backgroundColor: 'rgba(255, 255, 255, 0.3)',
+                          color: entry.textColor || 'white',
+                          fontWeight: 600,
+                        }}
+                      />
+                      {!entry.isMonster && (
+                        <FormControlLabel
+                          sx={{ m: 0 }}
+                          control={
+                            <Checkbox
+                              size="small"
+                              checked={entry.reaction !== false}
+                              disabled={entry.id !== playerEntry?.id}
+                              onChange={(e) =>
+                                getSocket().emit("update-entry", {
+                                  ...entry,
+                                  reaction: e.target.checked,
+                                })
+                              }
+                              sx={{
+                                p: 0.5,
+                                color: 'inherit',
+                                '&.Mui-checked, &.Mui-disabled': { color: 'inherit' },
+                              }}
+                            />
+                          }
+                          label={<Typography variant="caption" sx={{ fontWeight: 600 }}>Reaction</Typography>}
+                        />
+                      )}
+                    </Box>
                     </Box>
                     <Typography
                       variant="h5"

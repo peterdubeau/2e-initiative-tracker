@@ -16,6 +16,8 @@ export type Entry = {
   hp?: number;
   /** Max HP — shown only in GM view */
   maxHp?: number;
+  /** Reaction available (undefined means available) — GM sees all; players see only non-monsters */
+  reaction?: boolean;
 };
 
 interface RoomState {
